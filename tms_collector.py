@@ -243,7 +243,8 @@ def build_unit_status(con, cfg, day=None):
                         status[ts] = 0
                     else:
                         status[ts] = None
-                result.append((dbf, label, stacks, status))
+                result.append((fac.get("display") if fac.get("display") and len(dbfacs) == 1 else dbf,
+                               label, stacks, status))
     return result
 
 

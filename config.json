@@ -56,12 +56,35 @@
     {
       "area": "",
       "name": "지피에스",
-      "units": [ { "label": "전체", "stacks": [1, 2] } ]
+      "units": [ { "label": "전체", "stacks": [6, 7] } ]
     },
     {
       "area": "",
       "name": "포천민자",
       "units": [ { "label": "전체", "stacks": [1, 2, 3] } ]
+    },
+    {
+      "area": "",
+      "name": "삼천리",
+      "units": [ { "label": "전체", "stacks": [1, 2] } ]
+    },
+    {
+      "area": "",
+      "name": "안산도시개발",
+      "units": [ { "label": "배출구2", "stacks": [2] } ]
+    },
+    {
+      "area": "",
+      "name": "나래에너지서비스",
+      "exclude": ["하남사업소"],
+      "display": "나래(위례)",
+      "units": [ { "label": "전체", "stacks": [1] } ]
+    },
+    {
+      "area": "",
+      "name": "나래에너지서비스㈜하남사업소",
+      "display": "나래(하남)",
+      "units": [ { "label": "전체", "stacks": [1] } ]
     }
   ]
 }
