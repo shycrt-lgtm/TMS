@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TMS</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -23,6 +26,21 @@
   body h2{display:flex;align-items:center;font-size:18px;font-weight:700;color:#001f3f;margin:30px 0 10px;padding-bottom:8px;border-bottom:2px solid #e5e7eb}
   body h2::before{content:'';flex:none;width:6px;height:18px;margin-right:9px;background:#001f3f}
   @media (max-width:640px){ .site-header h1{font-size:22px} .menu{width:100%} .menu a{flex:1;width:auto;height:40px;padding:0 12px;font-size:13px} .wrap{padding-top:20px} }
+  .pick-row{display:flex;justify-content:flex-end;margin-bottom:16px}
+  .pick{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .pick label{font-size:14px;font-weight:700;color:#334155;cursor:pointer}
+  .pick .box{position:relative;display:flex;align-items:center}
+  .pick input{background:transparent;border:0;outline:0;font:inherit;font-size:14px;font-weight:700;color:#1e293b;width:112px;padding-right:24px;text-align:center;cursor:pointer}
+  .pick .box svg{position:absolute;right:2px;width:16px;height:16px;color:#64748b;pointer-events:none}
+  .pick .wd{font-size:12px;font-weight:700;padding:2px 6px;border:1px solid #e2e8f0;border-radius:4px;background:#fff;color:#64748b}
+  .pick .wd.hol{color:#e11d48;background:#fff1f2;border-color:#fecdd3}
+  .pick .sep{margin-left:4px;padding-left:8px;border-left:1px solid #e2e8f0}
+  .pick button{background:#001f3f;color:#fff;border:0;border-radius:4px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .pick button:hover{background:#1e293b}
+  .flatpickr-calendar{border:1px solid #cbd5e1;box-shadow:0 10px 25px -5px rgba(0,0,0,.15)}
+  .flatpickr-day.selected,.flatpickr-day.selected:hover{background:#001f3f;border-color:#001f3f}
+  .flatpickr-day.weekend-day{color:#dc2626;font-weight:700}
+  .flatpickr-weekday:first-child,.flatpickr-weekday:last-child{color:#dc2626;font-weight:700}
   .scroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;min-width:760px}
   th,td{border:1px solid #cbd5e1;padding:12px;text-align:center;font-size:.875rem}
@@ -42,6 +60,7 @@
   .note p{margin:0 0 6px}
   .note ul{margin:0;padding-left:20px;color:#334155}
   .dot.sm{width:11px;height:11px}
+  svg.warn{vertical-align:-3px}
 </style>
 </head>
 <body>
@@ -59,10 +78,21 @@
 </header>
 
 <div class="wrap">
+  <div class="pick-row">
+    <div class="pick">
+      <label for="viewDate">조회일자:</label>
+      <div class="box">
+        <input type="text" id="viewDate" readonly>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      </div>
+      <span id="viewWd" class="wd">(-)</span>
+      <div class="sep"><button id="btnLatest" type="button">⚡ 최근일로 →</button></div>
+    </div>
+  </div>
   <div class="note">
     <p><b>■ 굴뚝자동측정기기(TMS) 측정값(한국환경공단 CleanSYS) 기반 발전 여부 추정 자료로, 실제 운전 실적과 차이 가능</b></p>
     <ul>
-      <li><b>현재상태</b> : <span class="dot sm"></span> 발전중(NOx·CO 배출 측정) &nbsp;/&nbsp; <span class="dash">-</span> 가동중지 &nbsp;/&nbsp; <span class="unk">?</span> 판정불가(미수신·보수중·확인중 등)</li>
+      <li><b>현재상태</b> : <span class="dot sm"></span> 발전중(NOx·CO 배출 측정) &nbsp;/&nbsp; <span class="dash">-</span> 가동중지 &nbsp;/&nbsp; <span title="판정불가"><svg class="warn" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 L21.2 19.4 Q21.9 20.8 20.4 20.8 H3.6 Q2.1 20.8 2.8 19.4 Z" fill="#fff" stroke="#dc2626" stroke-width="2.2" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.6" rx="1" fill="#dc2626"/><circle cx="12" cy="17.2" r="1.15" fill="#dc2626"/></svg></span> 판정불가(미수신·보수중·확인중 등)</li>
       <li>가장 최근 조회된 30분 슬롯 기준이며, 측정자료는 실제 시각보다 약 1~1.5시간 지연되어 게시됨</li>
       <li><b>전일 발전시간</b> : 배출구 중 하나라도 배출이 측정된 30분 슬롯 수 × 0.5시간 (추정치)</li>
       <li>※ 표시 : 판정불가 또는 누락 슬롯이 포함된 값</li>
@@ -183,10 +213,12 @@ async function getText(path){
   return r.ok ? r.text() : null;
 }
 
-async function main(){
-  const day = yesterdayKST();
-  const [latestTxt, csvTxt] = await Promise.all([
-    getText("latest.json").catch(() => null), getText(`reports/report_${day}.csv`).catch(() => null)]);
+let LATEST_TXT;                                   // latest.json 은 한 번만 읽는다 (현재상태 = 마지막 저장 값)
+async function main(day = yesterdayKST()){
+  setPicker(day);
+  if (LATEST_TXT === undefined) LATEST_TXT = await getText("latest.json").catch(() => null);
+  const latestTxt = LATEST_TXT;
+  const csvTxt = await getText(`reports/report_${day}.csv`).catch(() => null);
   const latest = latestTxt ? JSON.parse(latestTxt) : null;
   const rep = {};
   if (csvTxt) parseCSV(csvTxt).slice(1).forEach(r => rep[r[1] + "|" + r[2]] =
@@ -229,7 +261,7 @@ async function main(){
     if (d.noLatest) st = `<span class="dash">-</span>`;
     else if (d.run === 1) st = `<span class="dot" title="발전중"></span>`;
     else if (d.run === 0) st = `<span class="dash" title="가동중지">-</span>`;
-    else st = `<span class="unk" title="판정불가">?</span>`;
+    else st = `<span title="판정불가"><svg class="warn" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 L21.2 19.4 Q21.9 20.8 20.4 20.8 H3.6 Q2.1 20.8 2.8 19.4 Z" fill="#fff" stroke="#dc2626" stroke-width="2.2" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.6" rx="1" fill="#dc2626"/><circle cx="12" cy="17.2" r="1.15" fill="#dc2626"/></svg></span>`;
     if (d.slot && ls && d.slot !== ls) st += `<span class="t">${shortTs(d.slot)}</span>`;   // 다른 시각 데이터면 표기
     h += `<td class="state">${st}</td>`;
 
@@ -246,7 +278,27 @@ async function main(){
   }
   $("out").className = ""; $("out").innerHTML = h + "</tbody></table>";
 }
-main().catch(e => { $("out").textContent = "불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (" + e.message + ")"; });
+const MIN_DAY = "2026-10-01";                      // 이 날짜부터 조회 가능
+const fail = e => { $("out").className = "msg"; $("out").textContent = "불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (" + e.message + ")"; };
+function setPicker(day){
+  const [y, m, d] = day.split("-").map(Number);
+  const wk = new Date(Date.UTC(y, m-1, d)).getUTCDay();
+  $("viewDate").value = day;
+  $("viewWd").textContent = "(" + "일월화수목금토"[wk] + ")";
+  $("viewWd").className = "wd" + (wk === 0 || wk === 6 ? " hol" : "");
+}
+main().catch(fail);
+window.addEventListener("DOMContentLoaded", () => {
+  if (typeof flatpickr === "undefined") return;     // 달력 라이브러리가 늦어도 표는 먼저 보인다
+  const last = yesterdayKST();
+  const fp = flatpickr("#viewDate", {
+    locale: "ko", dateFormat: "Y-m-d", defaultDate: last, disableMobile: true,
+    minDate: MIN_DAY < last ? MIN_DAY : last, maxDate: last,
+    onDayCreate: (o, s, f, el) => { const w = el.dateObj.getDay(); if (w === 0 || w === 6) el.classList.add("weekend-day"); },
+    onChange: (d, str) => { if (str) { $("out").className = "msg"; $("out").textContent = "불러오는 중…"; main(str).catch(fail); } }
+  });
+  $("btnLatest").addEventListener("click", () => { fp.setDate(last, false); $("out").className = "msg"; $("out").textContent = "불러오는 중…"; main(last).catch(fail); });
+});
 </script>
 </body>
 </html>
