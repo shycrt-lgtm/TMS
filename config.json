@@ -24,6 +24,7 @@
     {
       "area": "",
       "name": "안양열병합",
+      "display": "GS파워(안양)",
       "units": [
         {"label": "1호기", "stacks": [7]},
         {"label": "2호기", "stacks": [8]}
@@ -32,6 +33,7 @@
     {
       "area": "",
       "name": "부천열병합",
+      "display": "GS파워(부천)",
       "units": [ {"label": "전체", "stacks": [1, 2, 3]} ]
     },
     {
@@ -49,13 +51,13 @@
       "area": "",
       "name": "나래에너지서비스",
       "exclude": ["하남사업소"],
-      "display": "나래(위례)",
+      "display": "나래ES(위례)",
       "units": [ {"label": "전체", "stacks": [1]} ]
     },
     {
       "area": "",
       "name": "나래에너지서비스㈜하남사업소",
-      "display": "나래(하남)",
+      "display": "나래ES(하남)",
       "units": [ {"label": "전체", "stacks": [1]} ]
     },
     {
