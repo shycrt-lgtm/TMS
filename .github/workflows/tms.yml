@@ -37,6 +37,7 @@ jobs:
         run: |
           python3 tms_collector.py collect
           python3 tms_collector.py latest --json data/latest.json
+          python3 tms_collector.py slots --dir data/reports
 
       - name: Daily report
         if: github.event.schedule == '10 18 * * *'
@@ -46,6 +47,7 @@ jobs:
           D=$(TZ=Asia/Seoul date -d yesterday +%F)
           mkdir -p data/reports
           python3 tms_collector.py report --date "$D" --csv "data/reports/report_$D.csv"
+          python3 tms_collector.py slots --dir data/reports
 
       - name: Commit data
         run: |
