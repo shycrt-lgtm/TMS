@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>발전상황 모니터링</title>
+<title>TMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   /* KPX-Daily-Report 와 동일한 톤: 흰 배경 · Noto Sans KR · 네이비(#001f3f) 상단선 · 얇은 회색 격자 표 */
   *{box-sizing:border-box}
   body{margin:0;font-family:'Noto Sans KR',sans-serif;background:#fff;color:#1a1a1a}
-  .page{border-top:4px solid #001f3f;padding:24px 20px 48px}
-  .wrap{max-width:1152px;margin:0 auto}
-  .top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:28px}
-  h1{margin:0;font-size:30px;font-weight:900;color:#0f172a;letter-spacing:-.02em}
-  .sub{margin:4px 0 0;font-size:13px;color:#64748b}
-  .sub b{color:#1e293b;font-weight:700}
-  .nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-  .nav .lab{font-size:11px;color:#94a3b8;margin-right:2px}
-  .pill{display:inline-flex;align-items:center;padding:4px 10px;font-size:12px;font-weight:700;border-radius:4px;
-        text-decoration:none;border:1px solid #cbd5e1;color:#334155;background:#f8fafc}
-  .pill:hover{border-color:#001f3f}
-  .pill.on{background:#001f3f;border-color:#001f3f;color:#fff}
-  h2{font-size:1.125rem;font-weight:700;color:#001f3f;margin:0 0 .75rem;border-bottom:2px solid #e5e7eb;padding-bottom:.5rem}
+  .site-header{line-height:1.4;position:sticky;top:0;z-index:100;background:#001f3f;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .site-header .in{max-width:1000px;margin:0 auto;padding:18px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .site-header h1{line-height:1.2;margin:0;font-size:28px;font-weight:900;letter-spacing:-.02em;color:#fff}
+  .site-header .sub{margin:4px 0 0;font-size:13px;color:#b6c2d1}
+  .site-header .sub b{color:#fff;font-weight:700}
+  .menu{display:flex;gap:10px;flex-wrap:wrap}
+  .menu a{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:190px;height:44px;padding:0;border-radius:2px;background:#e5e7eb;color:#1e293b;font-size:14px;font-weight:700;text-decoration:none;transition:background .15s}
+  .menu a:hover{background:#f1f5f9}
+  .menu a span{font-size:16px;line-height:1}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 16px 48px}
+  body h2{display:flex;align-items:center;font-size:18px;font-weight:700;color:#001f3f;margin:30px 0 10px;padding-bottom:8px;border-bottom:2px solid #e5e7eb}
+  body h2::before{content:'';flex:none;width:6px;height:18px;margin-right:9px;background:#001f3f}
+  @media (max-width:640px){ .site-header h1{font-size:22px} .menu{width:100%} .menu a{flex:1;width:auto;height:40px;padding:0 12px;font-size:13px} .wrap{padding-top:20px} }
   .scroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;min-width:760px}
   th,td{border:1px solid #cbd5e1;padding:12px;text-align:center;font-size:.875rem}
@@ -45,19 +45,20 @@
 </style>
 </head>
 <body>
-<div class="page"><div class="wrap">
-  <div class="top">
+<header class="site-header">
+  <div class="in">
     <div>
-      <h1>발전상황 모니터링</h1>
-      <p class="sub" id="sub">기준: 굴뚝자동측정기기(TMS) | 자료: 한국환경공단 CleanSYS</p>
+      <h1>TMS</h1>
+      <p class="sub" id="sub">기준일: <b>-</b> | 에너지사업총괄</p>
     </div>
-    <div class="nav">
-      <span class="lab">메뉴</span>
-      <a class="pill" href="https://shycrt-lgtm.github.io/KPX-Daily-Report/">전력시장 전일실적</a>
-      <a class="pill on" href="#">발전상황 모니터링</a>
-    </div>
+    <nav class="menu">
+      <a href="https://shycrt-lgtm.github.io/Energy-Index/">에너지 시장 주요정보 <span>›</span></a>
+      <a href="https://shycrt-lgtm.github.io/KPX-Daily-Report/">전력시장 전일실적 <span>›</span></a>
+    </nav>
   </div>
+</header>
 
+<div class="wrap">
   <div class="note">
     <p><b>■ 굴뚝자동측정기기(TMS) 측정값(한국환경공단 CleanSYS) 기반 발전 여부 추정 자료로, 실제 운전 실적과 차이 가능</b></p>
     <ul>
@@ -70,11 +71,11 @@
 
   <h2>사업장별 발전 현황</h2>
   <div class="scroll"><div id="out" class="msg">불러오는 중…</div></div>
-</div></div>
+</div>
 
 <script>
 // ▼ 저장소 주소 (바뀌면 여기만 수정)
-const REPO = "shycrt-lgtm/tms-monitor", BRANCH = "data";
+const REPO = "shycrt-lgtm/TMS", BRANCH = "data";
 const raw = p => `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${p}`;
 
 // ▼ 발전용량·LNG 값 (사업장명 또는 "사업장명|구분" 으로 지정, 예: "GS파워(안양)|1호기": {cap: "000MW", lng: "000"})
@@ -214,7 +215,9 @@ async function main(){
   }));
 
   const ls = latest && latest.latest_slot;
-  $("sub").innerHTML = ls ? `기준: 현재상태 <b>${shortTs(ls)}</b> 슬롯 | 전일 발전시간 <b>${day}</b>` : `전일 발전시간 <b>${day}</b>`;
+  const [yy, mm, dd] = day.split("-").map(Number);
+  const wk = "일월화수목금토"[new Date(Date.UTC(yy, mm-1, dd)).getUTCDay()];
+  $("sub").innerHTML = `기준일: <b>${yy}년 ${pad(mm)}월 ${pad(dd)}일(${wk})</b> | 에너지사업총괄`;
 
   let h = `<table><colgroup><col style="width:72px"><col style="width:118px"><col style="width:84px"><col style="width:72px"><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th>
     <th>현재상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
