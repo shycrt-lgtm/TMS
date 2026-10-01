@@ -60,6 +60,19 @@
   .note p{margin:0 0 6px}
   .note ul{margin:0;padding-left:20px;color:#334155}
   .dot.sm{width:11px;height:11px}
+  td.hours .hbtn{background:none;border:0;padding:2px 8px;font:inherit;color:inherit;cursor:pointer;border-radius:4px;border-bottom:1px dashed #94a3b8}
+  td.hours .hbtn:hover{background:#eef2f7;border-bottom-color:#001f3f}
+  .ov{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+  .ov.on{display:flex}
+  .pop{background:#fff;border:1px solid #cbd5e1;box-shadow:0 20px 40px -10px rgba(0,0,0,.3);width:min(860px,100%);padding:20px 22px 16px}
+  .pop .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+  .pop h3{margin:0;font-size:1.05rem;color:#001f3f;font-weight:700;line-height:1.4}
+  .pop h3 small{display:block;font-size:12px;color:#64748b;font-weight:400}
+  .pop .x{background:none;border:0;font-size:26px;line-height:1;color:#64748b;cursor:pointer;padding:0 4px}
+  .pop .x:hover{color:#001f3f}
+  .pop .tip{height:20px;font-size:12px;color:#334155;text-align:right}
+  .pop .cap{font-size:12px;color:#64748b;margin-top:6px}
+  .pop svg{width:100%;height:auto;display:block}
   svg.warn{vertical-align:-3px}
 </style>
 </head>
@@ -213,12 +226,59 @@ async function getText(path){
   return r.ok ? r.text() : null;
 }
 
+
+// ---- 전일 발전시간 클릭 → 0시~24시 가동(1)/정지(0) 계단 그래프 팝업
+let SLOTS = null;
+function drawSlots(title, sub, arr){
+  const W = 800, H = 230, L = 46, R = 14, T = 14, B = 36, pw = W - L - R, ph = H - T - B, sw = pw / 48;
+  const y1 = T + 6, y0 = T + ph - 2;
+  const v = i => arr[i] === 1 ? 1 : 0;
+  let g = "";
+  for (let h = 0; h <= 24; h += 3){                               // 가로축 눈금(시간)
+    const x = L + h * 2 * sw;
+    g += `<line x1="${x}" y1="${T}" x2="${x}" y2="${T + ph}" stroke="#e2e8f0"/><text x="${x}" y="${H - 14}" text-anchor="middle" font-size="12" fill="#64748b">${h}시</text>`;
+  }
+  g += `<text x="${L - 10}" y="${y1 + 4}" text-anchor="end" font-size="13" fill="#334155" font-weight="700">1</text><text x="${L - 10}" y="${y0 + 4}" text-anchor="end" font-size="13" fill="#334155" font-weight="700">0</text>`;
+  g += `<line x1="${L}" y1="${y1}" x2="${L + pw}" y2="${y1}" stroke="#e2e8f0" stroke-dasharray="3 3"/><line x1="${L}" y1="${y0}" x2="${L + pw}" y2="${y0}" stroke="#94a3b8"/>`;
+  let a = "", d = "";
+  for (let i = 0; i < 48; i++){                                   // 발전 구간 면 + 계단선
+    const x = L + i * sw, y = v(i) ? y1 : y0;
+    if (v(i)) a += `<rect x="${x}" y="${y1}" width="${sw}" height="${y0 - y1}" fill="#16a34a" opacity=".16"/>`;
+    d += (i === 0 ? `M${x},${y}` : `L${x},${y}`) + `L${x + sw},${y}`;
+  }
+  g += a + `<path d="${d}" fill="none" stroke="#001f3f" stroke-width="2.4" stroke-linejoin="miter"/>`;
+  let hov = "";
+  for (let i = 0; i < 48; i++){                                   // 마우스 올리면 시각·상태 표시
+    const hh = Math.floor(i / 2), mm = i % 2 ? "30" : "00", e = i + 1, eh = Math.floor(e / 2), em = e % 2 ? "30" : "00";
+    const st = arr[i] === 1 ? "발전(1)" : arr[i] === 0 ? "정지(0)" : "판정불가·미수신(0)";
+    hov += `<rect class="hv" x="${L + i * sw}" y="${T}" width="${sw}" height="${ph}" fill="transparent" data-t="${hh}:${mm} ~ ${eh}:${em} · ${st}"/>`;
+  }
+  $("pTitle").innerHTML = `${esc(title)}<small>${esc(sub)}</small>`;
+  $("pChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)} 시간대별 발전 여부">${g}${hov}</svg>`;
+  $("pTip").innerHTML = "&nbsp;";
+  $("pChart").querySelectorAll(".hv").forEach(el => {
+    el.addEventListener("mouseenter", () => { $("pTip").textContent = el.dataset.t; });
+    el.addEventListener("click", () => { $("pTip").textContent = el.dataset.t; });
+  });
+  $("ov").classList.add("on");
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest(".hbtn");
+  if (b && SLOTS){
+    const k = b.dataset.k, arr = SLOTS.units[k];
+    if (arr) drawSlots(b.dataset.name, SLOTS.day + " 시간대별 발전 여부", arr);
+  } else if (e.target.id === "ov" || e.target.id === "pClose") $("ov").classList.remove("on");
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("ov").classList.remove("on"); });
+
 let LATEST_TXT;                                   // latest.json 은 한 번만 읽는다 (현재상태 = 마지막 저장 값)
 async function main(day = yesterdayKST()){
   setPicker(day);
   if (LATEST_TXT === undefined) LATEST_TXT = await getText("latest.json").catch(() => null);
   const latestTxt = LATEST_TXT;
   const csvTxt = await getText(`reports/report_${day}.csv`).catch(() => null);
+  SLOTS = null;
+  try { const st = await getText(`reports/slots_${day}.json`); if (st) SLOTS = JSON.parse(st); } catch (e) { SLOTS = null; }
   const latest = latestTxt ? JSON.parse(latestTxt) : null;
   const rep = {};
   if (csvTxt) parseCSV(csvTxt).slice(1).forEach(r => rep[r[1] + "|" + r[2]] =
@@ -268,7 +328,11 @@ async function main(day = yesterdayKST()){
     let hr = `<span class="dash">-</span>`;
     if (d.rep && !isNaN(d.rep.on)){
       const flag = d.rep.na > 0 || d.rep.n < 48 ? ` <span class="unk" title="판정불가·누락 슬롯 포함">※</span>` : "";
-      hr = `<b>${d.rep.on.toFixed(1)}</b> h${flag}`;
+      const key = d.fac + "|" + d.unit;
+      const nm = d.fac + (d.multi || d.unit !== "1" ? " " + d.unit : "");
+      hr = SLOTS && SLOTS.units[key]
+        ? `<button type="button" class="hbtn" data-k="${esc(key)}" data-name="${esc(nm)}" title="클릭하면 시간대별 그래프"><b>${d.rep.on.toFixed(1)}</b> h</button>${flag}`
+        : `<b>${d.rep.on.toFixed(1)}</b> h${flag}`;
     }
     h += `<td class="hours">${hr}</td>`;
     const info = INFO[d.fac + "|" + d.unit] || INFO[d.fac] || {};
@@ -300,5 +364,11 @@ window.addEventListener("DOMContentLoaded", () => {
   $("btnLatest").addEventListener("click", () => { fp.setDate(last, false); $("out").className = "msg"; $("out").textContent = "불러오는 중…"; main(last).catch(fail); });
 });
 </script>
+<div class="ov" id="ov"><div class="pop" role="dialog" aria-modal="true">
+  <div class="hd"><h3 id="pTitle"></h3><button class="x" id="pClose" aria-label="닫기">×</button></div>
+  <div class="tip" id="pTip">&nbsp;</div>
+  <div id="pChart"></div>
+  <div class="cap">1 = 발전, 0 = 정지 또는 판정불가·미수신 (30분 단위)</div>
+</div></div>
 </body>
 </html>

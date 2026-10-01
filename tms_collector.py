@@ -19,6 +19,7 @@
   python tms_collector.py collect
   python tms_collector.py status
   python tms_collector.py report [--date 2026-09-30] [--csv out.csv]
+  python tms_collector.py slots  [--dir reports] [--date 2026-09-30]   # 화면 그래프용 30분 슬롯 파일
 
 인증키: 환경변수 DATA_GO_KR_KEY / DB 경로: 환경변수 TMS_DB. 표준 라이브러리만 사용.
 """
@@ -379,6 +380,45 @@ def cmd_report(cfg, args):
         print("CSV 저장:", args.csv)
 
 
+def cmd_slots(cfg, args):
+    """완료된 날(오늘 제외)별로 단위(호기)의 30분 슬롯 가동 여부를 JSON 으로 저장 (화면의 발전시간 그래프용).
+    파일: <dir>/slots_YYYY-MM-DD.json  값: 48칸 배열(0시, 0시30분 ... 23시30분), 1=발전 0=정지 null=판정불가·미수신"""
+    con = db_connect(cfg)
+    outdir = args.dir or "reports"
+    os.makedirs(outdir, exist_ok=True)
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    if args.date:
+        days = [args.date]
+    else:
+        days = [r[0] for r in con.execute("SELECT DISTINCT substr(slot_ts,1,10) FROM readings ORDER BY 1")]
+    n_files = 0
+    for day in days:
+        if day >= today and not args.date:
+            continue
+        units = build_unit_status(con, cfg, day)
+        if not units:
+            continue
+        interval = detect_interval(cfg, units)
+        data = {}
+        for dbf, unit, stacks, status in units:
+            arr = [None] * 48
+            for ts, v in status.items():
+                t = datetime.fromisoformat(ts)
+                i = t.hour * 2 + (1 if t.minute >= 30 else 0)
+                arr[i] = v
+                if interval >= 60 and i + 1 < 48:
+                    arr[i + 1] = v  # 1시간 간격 자료면 뒤 30분도 같은 값으로 채움
+            data[f"{dbf}|{unit}"] = arr
+        path = os.path.join(outdir, f"slots_{day}.json")
+        text = json.dumps({"day": day, "interval": interval, "units": data}, ensure_ascii=False, separators=(",", ":"))
+        if os.path.exists(path) and open(path, encoding="utf-8").read() == text:
+            continue  # 내용이 같으면 건드리지 않음(불필요한 커밋 방지)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        n_files += 1
+    print(f"슬롯 파일 {n_files}개 저장/갱신 ({outdir})")
+
+
 def cmd_latest(cfg, args):
     """단위(호기)별 가장 최근 슬롯의 발전상태를 JSON 으로 저장 (화면 표시용)."""
     con = db_connect(cfg)
@@ -402,16 +442,17 @@ def cmd_latest(cfg, args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["probe", "collect", "status", "report", "latest"])
+    ap.add_argument("cmd", choices=["probe", "collect", "status", "report", "latest", "slots"])
     ap.add_argument("--config", default=os.path.join(HERE, "config.json"))
     ap.add_argument("--facility")
     ap.add_argument("--stack")
     ap.add_argument("--date")
     ap.add_argument("--csv")
     ap.add_argument("--json")
+    ap.add_argument("--dir")
     args = ap.parse_args()
     cfg = load_config(args.config)
-    {"probe": cmd_probe, "collect": cmd_collect, "status": cmd_status, "report": cmd_report, "latest": cmd_latest}[args.cmd](cfg, args)
+    {"probe": cmd_probe, "collect": cmd_collect, "status": cmd_status, "report": cmd_report, "latest": cmd_latest, "slots": cmd_slots}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
