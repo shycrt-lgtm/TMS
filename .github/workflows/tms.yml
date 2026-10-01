@@ -2,8 +2,8 @@ name: tms-collect
 
 on:
   schedule:
-    - cron: '5,35 * * * *'   # 30분 수집 (매시 5분, 35분 UTC=KST 동일)
-    - cron: '10 15 * * *'    # 매일 00:10 KST 전일 가동시간 리포트
+    - cron: '7,22,37,52 * * * *'   # 15분마다 수집 (측정값은 30분 단위로 약 1~1.5시간 늦게 올라오며, API 는 최신값만 주므로 놓치지 않게 자주 확인)
+    - cron: '10 18 * * *'          # 매일 03:10 KST 전일 가동시간 리포트 (전일 마지막 슬롯이 올라온 뒤)
   workflow_dispatch:
 
 permissions:
@@ -30,14 +30,14 @@ jobs:
           fi
 
       - name: Collect
-        if: github.event.schedule != '10 15 * * *'
+        if: github.event.schedule != '10 18 * * *'
         env:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
           TMS_DB: data/tms.db
         run: python3 tms_collector.py collect
 
       - name: Daily report
-        if: github.event.schedule == '10 15 * * *'
+        if: github.event.schedule == '10 18 * * *'
         env:
           TMS_DB: data/tms.db
         run: |
