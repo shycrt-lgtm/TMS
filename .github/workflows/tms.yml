@@ -34,7 +34,9 @@ jobs:
         env:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
           TMS_DB: data/tms.db
-        run: python3 tms_collector.py collect
+        run: |
+          python3 tms_collector.py collect
+          python3 tms_collector.py latest --json data/latest.json
 
       - name: Daily report
         if: github.event.schedule == '10 18 * * *'
