@@ -379,17 +379,39 @@ def cmd_report(cfg, args):
         print("CSV 저장:", args.csv)
 
 
+def cmd_latest(cfg, args):
+    """단위(호기)별 가장 최근 슬롯의 발전상태를 JSON 으로 저장 (화면 표시용)."""
+    con = db_connect(cfg)
+    items = []
+    for dbf, unit, stacks, status in build_unit_status(con, cfg):
+        if not status:
+            items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": None, "running": None})
+            continue
+        slot = max(status)
+        items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": slot, "running": status[slot]})
+    slots = [i["slot"] for i in items if i["slot"]]
+    out = {"generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+           "latest_slot": max(slots) if slots else None, "items": items}
+    for i in items:
+        print(f"{i['facility']:<24}{i['unit']:<10}{str(i['slot']):<28}{i['running']}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, ensure_ascii=False, indent=1)
+        print("JSON 저장:", args.json)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["probe", "collect", "status", "report"])
+    ap.add_argument("cmd", choices=["probe", "collect", "status", "report", "latest"])
     ap.add_argument("--config", default=os.path.join(HERE, "config.json"))
     ap.add_argument("--facility")
     ap.add_argument("--stack")
     ap.add_argument("--date")
     ap.add_argument("--csv")
+    ap.add_argument("--json")
     args = ap.parse_args()
     cfg = load_config(args.config)
-    {"probe": cmd_probe, "collect": cmd_collect, "status": cmd_status, "report": cmd_report}[args.cmd](cfg, args)
+    {"probe": cmd_probe, "collect": cmd_collect, "status": cmd_status, "report": cmd_report, "latest": cmd_latest}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
