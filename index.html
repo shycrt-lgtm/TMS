@@ -24,12 +24,12 @@
   .pill.on{background:#001f3f;border-color:#001f3f;color:#fff}
   h2{font-size:1.125rem;font-weight:700;color:#001f3f;margin:0 0 .75rem;border-bottom:2px solid #e5e7eb;padding-bottom:.5rem}
   .scroll{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;min-width:640px;border:2px solid #475569}
+  table{width:100%;border-collapse:collapse;min-width:760px;border:2px solid #475569}
   th,td{border:1px solid #94a3b8;padding:12px;text-align:center;font-size:.875rem}
   th{background:#eef2f7;border-bottom:2px solid #475569;font-weight:700;color:#334155;line-height:1.4}
   th small{display:block;font-weight:400;color:#64748b;font-size:11px}
   td.grp{background:#eef2f7;border-right:2px solid #64748b;font-weight:700;color:#001f3f;width:76px}
-  td.fac{font-weight:700;text-align:left}
+  td.lab{font-weight:700;line-height:1.35}
   td.info{white-space:nowrap}
   td.state{width:120px}
   td.hours{width:140px;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -70,12 +70,6 @@
 const REPO = "shycrt-lgtm/tms-monitor", BRANCH = "data";
 const raw = p => `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${p}`;
 
-// 그룹 지정: 표시 순서는 config.json 순서를 따르고, 연속된 같은 그룹은 한 칸으로 병합
-const GROUPS = [
-  {name: "SCL", test: n => (/에스파워/.test(n) && !/디에스파워/.test(n)) || /광명사업단|안산도시개발/.test(n)},
-  {name: "GS",  test: n => /GS파워|청라에너지|김포|인천종합에너지/.test(n)},
-  {name: "SK",  test: n => /나래ES/.test(n)},
-];
 // ▼ 발전용량·LNG 값 (사업장명 또는 "사업장명|구분" 으로 지정, 예: "GS파워(안양)|1호기": {cap: "000MW", lng: "000"})
 const INFO = {
   // "㈜에스파워": {cap: "", lng: ""},
@@ -98,7 +92,30 @@ const lngOf = (fac, unit) => {
   const r = LNG_RULES.find(([f, u]) => f.test(fac) && (!u || u.test(unit)));
   return r ? r[2] : LNG_DEFAULT;
 };
-const groupOf = n => (GROUPS.find(g => g.test(n)) || {}).name || "";
+
+// ▼ 표 왼쪽 4단 배치: [그룹][회사][사업장][호기] — 규칙은 [사업장명 패턴, (호기)=>[[글자, 칸수], ...]] (칸수 합계 4)
+//   같은 글자가 위아래로 이어지면 자동으로 한 칸으로 병합됩니다. 규칙이 없으면 사업장명이 4칸 전체를 차지합니다.
+const clean = n => n.replace(/㈜|\(주\)|주식회사/g, "").trim();
+const LAYOUT = [
+  [/광명사업단/,        () => [["SCL", 1], ["광명사업단", 3]]],
+  [/안산도시개발/,      () => [["SCL", 1], ["안산도시개발", 3]]],
+  [/에스파워/,          (u, f) => /디에스파워/.test(f) ? null : [["SCL", 1], ["에스파워", 3]]],
+  [/GS파워\(안양\)/,   u => [["GS", 1], ["GS파워", 1], ["안양", 1], [u, 1]]],
+  [/GS파워\(부천\)/,   () => [["GS", 1], ["GS파워", 1], ["부천", 2]]],
+  [/청라에너지|김포/,    () => [["GS", 1], ["청라에너지(김포)", 3]]],
+  [/인천종합에너지/,     () => [["GS", 1], ["인천종합에너지", 3]]],
+  [/나래ES\(위례\)/,   () => [["SK E&S", 1], ["나래ES", 1], ["위례열병합", 2]]],
+  [/나래ES\(하남\)/,   () => [["SK E&S", 1], ["나래ES", 1], ["하남열병합", 2]]],
+  [/포천파워/,          u => [["DL", 1], ["포천파워", 1], [u, 2]]],
+];
+function layoutOf(fac, unit, multi){
+  for (const [re, fn] of LAYOUT){
+    if (!re.test(fac)) continue;
+    const r = fn(unit, fac);
+    if (r) return r;
+  }
+  return multi ? [[clean(fac), 2], [unit, 2]] : [[clean(fac), 4]];
+}
 
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
@@ -143,25 +160,31 @@ async function main(){
   else rows = Object.keys(rep).map(k => { const [fac, unit] = k.split("|"); return {fac, unit, slot: null, run: null, noLatest: true}; });
   if (!rows.length){ $("out").textContent = "표시할 데이터가 아직 없습니다. (첫 수집 이후 표시됩니다)"; return; }
 
-  rows.forEach(r => { r.grp = groupOf(r.fac); r.rep = rep[r.fac + "|" + r.unit]; });
-  rows.forEach((d, i) => {
-    const p = rows[i-1];
-    d.facSpan = 1;                                   // 호기별로 사업장 셀을 나눔
-    d.multi = rows.filter(x => x.fac === d.fac).length > 1;
-    if (p && d.grp && p.grp === d.grp) d.grpSpan = 0;
-    else { let k = i; while (k < rows.length && rows[k].grp === d.grp) k++; d.grpSpan = d.grp ? k - i : 0; }
+  rows.forEach(r => {
+    r.rep = rep[r.fac + "|" + r.unit];
+    r.multi = rows.filter(x => x.fac === r.fac).length > 1;
+    r.cells = layoutOf(r.fac, r.unit, r.multi);
+    let col = 0, path = "";                       // 같은 위치·같은 경로의 같은 글자는 세로 병합 대상
+    r.cells.forEach(c => { path += "/" + c[0]; c.push(col, path); col += c[1]; });
   });
+  // 세로 병합 칸수 계산 (cells[i] = [글자, 가로칸, 시작열, 경로, (세로칸수)])
+  rows.forEach((d, i) => d.cells.forEach(c => {
+    const prev = rows[i-1], same = prev && prev.cells.some(x => x[2] === c[2] && x[1] === c[1] && x[3] === c[3]);
+    if (same){ c.skip = true; return; }
+    let k = i + 1;
+    while (k < rows.length && rows[k].cells.some(x => x[2] === c[2] && x[1] === c[1] && x[3] === c[3])) k++;
+    c.rs = k - i;
+  }));
 
   const ls = latest && latest.latest_slot;
   $("sub").textContent = ls ? `현재 상태: ${shortTs(ls)} 슬롯 기준 · 전일(${day}) 누적 발전시간` : `전일(${day}) 누적 발전시간`;
 
-  let h = `<table><thead><tr><th colspan="2">사업장</th><th>발전용량</th><th>LNG</th>
-    <th>현재 상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
+  let h = `<table><colgroup><col style="width:72px"><col style="width:118px"><col style="width:84px"><col style="width:72px"><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th><th>발전용량</th><th>LNG</th>
+    <th>현재상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
     <th>전일 발전시간<small>${day}</small></th></tr></thead><tbody>`;
   for (const d of rows){
     h += "<tr>";
-    if (d.grpSpan) h += `<td class="grp" rowspan="${d.grpSpan}">${esc(d.grp)}</td>`;
-    if (d.facSpan) h += `<td class="fac" ${d.grp ? "" : 'colspan="2"'}>${esc(d.fac)}${d.multi ? " " + esc(d.unit) : ""}</td>`;
+    d.cells.forEach((c, k) => { if (!c.skip) h += `<td class="lab${c[2] === 0 && c[1] === 1 ? " grp" : ""}" colspan="${c[1]}" rowspan="${c.rs}">${esc(c[0])}</td>`; });
     const info = INFO[d.fac + "|" + d.unit] || INFO[d.fac] || {};
     h += `<td class="info">${info.cap ? esc(info.cap) : "-"}</td>`;
     h += `<td class="info">${esc(info.lng || lngOf(d.fac, d.unit))}</td>`;
