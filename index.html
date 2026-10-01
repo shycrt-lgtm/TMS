@@ -24,11 +24,11 @@
   .pill.on{background:#001f3f;border-color:#001f3f;color:#fff}
   h2{font-size:1.125rem;font-weight:700;color:#001f3f;margin:0 0 .75rem;border-bottom:2px solid #e5e7eb;padding-bottom:.5rem}
   .scroll{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;min-width:640px}
-  th,td{border:1px solid #e5e7eb;padding:12px;text-align:center;font-size:.875rem}
-  th{background:#f8fafc;font-weight:700;color:#334155;line-height:1.4}
+  table{width:100%;border-collapse:collapse;min-width:640px;border:2px solid #475569}
+  th,td{border:1px solid #94a3b8;padding:12px;text-align:center;font-size:.875rem}
+  th{background:#eef2f7;border-bottom:2px solid #475569;font-weight:700;color:#334155;line-height:1.4}
   th small{display:block;font-weight:400;color:#64748b;font-size:11px}
-  td.grp{background:#f8fafc;font-weight:700;color:#001f3f;width:76px}
+  td.grp{background:#eef2f7;border-right:2px solid #64748b;font-weight:700;color:#001f3f;width:76px}
   td.fac{font-weight:700;text-align:left}
   td.info{white-space:nowrap}
   td.state{width:120px}
@@ -128,8 +128,8 @@ async function main(){
   rows.forEach(r => { r.grp = groupOf(r.fac); r.rep = rep[r.fac + "|" + r.unit]; });
   rows.forEach((d, i) => {
     const p = rows[i-1];
-    if (p && p.fac === d.fac) d.facSpan = 0;
-    else { let k = i; while (k < rows.length && rows[k].fac === d.fac) k++; d.facSpan = k - i; }
+    d.facSpan = 1;                                   // 호기별로 사업장 셀을 나눔
+    d.multi = rows.filter(x => x.fac === d.fac).length > 1;
     if (p && d.grp && p.grp === d.grp) d.grpSpan = 0;
     else { let k = i; while (k < rows.length && rows[k].grp === d.grp) k++; d.grpSpan = d.grp ? k - i : 0; }
   });
@@ -143,11 +143,9 @@ async function main(){
   for (const d of rows){
     h += "<tr>";
     if (d.grpSpan) h += `<td class="grp" rowspan="${d.grpSpan}">${esc(d.grp)}</td>`;
-    if (d.facSpan) h += `<td class="fac" ${d.grp ? "" : 'colspan="2"'} rowspan="${d.facSpan}">${esc(d.fac)}</td>`;
+    if (d.facSpan) h += `<td class="fac" ${d.grp ? "" : 'colspan="2"'}>${esc(d.fac)}${d.multi ? " " + esc(d.unit) : ""}</td>`;
     const info = INFO[d.fac + "|" + d.unit] || INFO[d.fac] || {};
-    const multi = rows.filter(x => x.fac === d.fac).length > 1;   // 호기가 여러 개면 호기명을 작게 병기
-    const tag = multi ? `<span class="t">${esc(d.unit)}</span>` : "";
-    h += `<td class="info">${tag}${info.cap ? esc(info.cap) : "-"}</td>`;
+    h += `<td class="info">${info.cap ? esc(info.cap) : "-"}</td>`;
     h += `<td class="info">${info.lng ? esc(info.lng) : "-"}</td>`;
 
     let st;
