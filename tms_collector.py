@@ -68,7 +68,9 @@ def parse_time(s):
 # ---------------------------------------------------------------- API 호출
 def call_api(cfg, area, facility, stack):
     key = cfg.get("service_key") or os.environ.get("DATA_GO_KR_KEY", "")
-    params = {"factManageNm": facility, "stackCode": stack, "type": "json"}
+    params = {"factManageNm": facility, "type": "json"}
+    if str(stack).strip().lower() not in ("all", ""):  # probe 에서 배출구 칸에 all 입력 시 배출구 조건 없이 조회
+        params["stackCode"] = stack
     if area:
         params["areaNm"] = area
     # 포털 Encoding 키(% 포함)는 그대로, Decoding 키는 인코딩해서 사용
@@ -122,7 +124,7 @@ def select_records(items, facility, stack):
     out = []
     for r in pool:
         sc = str(r.get("stack_code", "")).strip().lstrip("0")
-        if sc and sc != str(stack).strip().lstrip("0"):
+        if sc and str(stack).strip().lower() != "all" and sc != str(stack).strip().lstrip("0"):
             continue
         out.append(r)
     return out
@@ -159,6 +161,61 @@ def extract_time(rec, cfg):
     return parse_time(rec[tf]) if tf in rec else None
 
 
+# ---------------------------------------------------------------- 발전 단위(호기) 구성
+def units_of(fac):
+    """사업장의 발전 단위 목록 [(라벨, [배출구...])].
+    config 에 "units" 가 있으면 그대로 사용 (여러 배출구를 한 단위로 합산 가능),
+    없으면 "stacks" 의 각 배출구를 별개 단위로 취급한다."""
+    if fac.get("units"):
+        return [(u.get("label") or "+".join(str(s) for s in u["stacks"]), [str(s) for s in u["stacks"]])
+                for u in fac["units"]]
+    return [(f"배출구{s}", [str(s)]) for s in (fac.get("stacks") or [])]
+
+
+def stacks_to_collect(fac):
+    out = []
+    for _, ss in units_of(fac):
+        for s in ss:
+            if s not in out:
+                out.append(s)
+    return out
+
+
+def build_unit_status(con, cfg, day=None):
+    """배출구별 판정을 단위(호기) 단위로 합친다.
+    단위 상태: 소속 배출구 중 하나라도 발전(1) → 발전 / 전부 정지(0) → 정지 / 그 외(결측 포함) → 판정불가.
+    return [(DB 사업장명, 단위라벨, [배출구], {slot_ts: 1|0|None})]"""
+    sql = "SELECT facility, stack, slot_ts, running FROM readings"
+    rows = con.execute(sql + (" WHERE substr(slot_ts,1,10)=?" if day else ""), (day,) if day else ()).fetchall()
+    by = {}
+    for f, s, ts, r in rows:
+        by.setdefault((f, s), {})[ts] = r
+
+    def stack_key(s):
+        return (0, int(s)) if str(s).isdigit() else (1, str(s))
+
+    result = []
+    for fac in cfg["facilities"]:
+        name = fac["name"]
+        dbfacs = sorted({f for (f, s) in by if f == name or name in f})
+        for dbf in dbfacs:
+            units = units_of(fac) or [(f"배출구{s}", [s]) for s in sorted({s for (f, s) in by if f == dbf}, key=stack_key)]
+            for label, stacks in units:
+                series = [by.get((dbf, s), {}) for s in stacks]
+                slots = sorted(set().union(*[set(x) for x in series]))
+                status = {}
+                for ts in slots:
+                    vals = [x.get(ts, "missing") for x in series]
+                    if any(v == 1 for v in vals):
+                        status[ts] = 1
+                    elif all(v == 0 for v in vals):
+                        status[ts] = 0
+                    else:
+                        status[ts] = None
+                result.append((dbf, label, stacks, status))
+    return result
+
+
 # ---------------------------------------------------------------- 명령
 def cmd_probe(cfg, args):
     fac = next((f for f in cfg["facilities"] if not args.facility or f["name"] == args.facility), None)
@@ -166,12 +223,13 @@ def cmd_probe(cfg, args):
         fac = {"name": args.facility, "area": ""}  # config 에 없어도 입력한 이름으로 바로 조회
     if not fac:
         sys.exit("조회할 사업장 이름이 없음")
-    stack = args.stack or (fac.get("stacks") or [1])[0]
+    stack = args.stack or (stacks_to_collect(fac) or [1])[0]
     data, raw = call_api(cfg, fac.get("area", ""), fac["name"], stack)
     print(json.dumps(data, ensure_ascii=False, indent=2) if data else raw[:3000])
     if data:
-        names = sorted({str(r.get("fact_manage_nm", "")).strip() for r in find_items(data)})
-        print("\n[조회된 사업장명]", names if names else "없음 (이름이 API 의 사업장명과 다르거나 해당 배출구 없음)")
+        names = sorted({(str(r.get("area_nm", "")).strip(), str(r.get("fact_manage_nm", "")).strip(),
+                         str(r.get("stack_code", "")).strip()) for r in find_items(data)})
+        print("\n[조회된 사업장 (지역, 사업장명, 배출구)]", names if names else "없음 (이름이 API 의 사업장명과 다르거나 해당 배출구 없음)")
     items = select_records(find_items(data), fac["name"], stack) if data else []
     if items:
         print("\n[레코드 수]", len(items))
@@ -190,7 +248,7 @@ def cmd_collect(cfg, args):
     for fac in cfg["facilities"]:
         if abort:
             break
-        stacks = fac.get("stacks")
+        stacks = stacks_to_collect(fac)
         auto = not stacks
         stacks = stacks or list(range(1, int(cfg.get("max_stack", 10)) + 1))
         misses = 0
@@ -241,39 +299,32 @@ def cmd_collect(cfg, args):
 
 def cmd_status(cfg, args):
     con = db_connect(cfg)
-    rows = con.execute(
-        """SELECT facility, stack, slot_ts, running, basis FROM readings r
-           WHERE slot_ts=(SELECT MAX(slot_ts) FROM readings WHERE facility=r.facility AND stack=r.stack)
-           ORDER BY facility, stack"""
-    ).fetchall()
     label = {1: "발전", 0: "정지", None: "판정불가"}
-    print(f"{'사업장':<20}{'배출구':<6}{'기준시각':<22}{'상태':<8}근거")
-    for f, s, ts, run, basis in rows:
-        print(f"{f:<20}{s:<6}{ts[:16]:<22}{label[run]:<8}{basis}")
+    print(f"{'사업장':<20}{'단위':<10}{'배출구':<8}{'기준시각':<18}상태")
+    for dbf, unit, stacks, status in build_unit_status(con, cfg):
+        if not status:
+            continue
+        ts = max(status)
+        print(f"{dbf:<20}{unit:<10}{'+'.join(stacks):<8}{ts[:16]:<18}{label[status[ts]]}")
 
 
 def cmd_report(cfg, args):
     con = db_connect(cfg)
     day = args.date or (datetime.now(KST) - timedelta(days=1)).strftime("%Y-%m-%d")
-    rows = con.execute(
-        """SELECT facility, stack,
-                  SUM(running=1), SUM(running=0), SUM(running IS NULL), COUNT(*)
-           FROM readings WHERE substr(slot_ts,1,10)=? GROUP BY facility, stack ORDER BY facility, stack""",
-        (day,),
-    ).fetchall()
     out = []
-    print(f"[{day}] 배출구별 가동시간 (30분 슬롯 × 0.5h, 하루 48슬롯 기준)")
-    print(f"{'사업장':<20}{'배출구':<6}{'가동h':>7}{'정지h':>7}{'수집슬롯':>9}{'커버리지':>9}")
-    for f, s, on, off, na, n in rows:
-        on, off, na = on or 0, off or 0, na or 0
+    print(f"[{day}] 단위(호기)별 가동시간 (30분 슬롯 × 0.5h, 하루 48슬롯 기준)")
+    print(f"{'사업장':<20}{'단위':<10}{'배출구':<8}{'가동h':>7}{'정지h':>7}{'수집슬롯':>9}{'커버리지':>9}")
+    for dbf, unit, stacks, status in build_unit_status(con, cfg, day):
+        vals = list(status.values())
+        on, off, na, n = vals.count(1), vals.count(0), vals.count(None), len(vals)
         cov = n / 48
-        out.append([day, f, s, on * 0.5, off * 0.5, na, n, f"{cov:.0%}"])
-        warn = "  ※누락 있음" if n < 48 else ""
-        print(f"{f:<20}{s:<6}{on*0.5:>7.1f}{off*0.5:>7.1f}{n:>9}{cov:>9.0%}{warn}")
+        out.append([day, dbf, unit, "+".join(stacks), on * 0.5, off * 0.5, na, n, f"{cov:.0%}"])
+        warn = "  ※누락 있음" if n < 48 or na else ""
+        print(f"{dbf:<20}{unit:<10}{'+'.join(stacks):<8}{on*0.5:>7.1f}{off*0.5:>7.1f}{n:>9}{cov:>9.0%}{warn}")
     if args.csv:
         with open(args.csv, "w", newline="", encoding="utf-8-sig") as fh:
             w = csv.writer(fh)
-            w.writerow(["일자", "사업장", "배출구", "가동시간(h)", "정지시간(h)", "판정불가슬롯", "수집슬롯", "커버리지"])
+            w.writerow(["일자", "사업장", "단위", "배출구", "가동시간(h)", "정지시간(h)", "판정불가슬롯", "수집슬롯", "커버리지"])
             w.writerows(out)
         print("CSV 저장:", args.csv)
 
