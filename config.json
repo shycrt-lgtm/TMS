@@ -6,6 +6,10 @@
   "time_field": "",
   "run_rule": { "field": "", "op": ">", "value": 0 },
   "facilities": [
-    { "area": "", "name": "에스파워", "stacks": [1, 2] }
-  ]
-}
+  { "area": "", "name": "에스파워",
+    "units": [ { "label": "전체", "stacks": [1, 2] } ] },
+
+  { "area": "", "name": "GS파워",
+    "units": [ { "label": "1호기", "stacks": [7] },
+               { "label": "2호기", "stacks": [8] } ] }
+]
