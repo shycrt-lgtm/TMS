@@ -31,6 +31,37 @@
       "area": "",
       "name": "평택에너지앤파워",
       "units": [ { "label": "전체", "stacks": [1, 2, 3] } ]
+    },
+    {
+      "area": "",
+      "name": "포천파워",
+      "units": [
+        { "label": "1호기", "stacks": [1, 2] },
+        { "label": "2호기", "stacks": [3, 4] }
+      ]
+    },
+    {
+      "area": "",
+      "name": "동두천드림파워",
+      "units": [
+        { "label": "1호기", "stacks": [1, 2] },
+        { "label": "2호기", "stacks": [3, 4] }
+      ]
+    },
+    {
+      "area": "",
+      "name": "통영에코파워",
+      "units": [ { "label": "전체", "stacks": [1, 2] } ]
+    },
+    {
+      "area": "",
+      "name": "지피에스",
+      "units": [ { "label": "전체", "stacks": [1, 2] } ]
+    },
+    {
+      "area": "",
+      "name": "포천민자",
+      "units": [ { "label": "전체", "stacks": [1, 2, 3] } ]
     }
   ]
 }
