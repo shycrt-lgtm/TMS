@@ -1,0 +1,60 @@
+name: tms-collect
+
+on:
+  schedule:
+    - cron: '5,35 * * * *'   # 30분 수집 (매시 5분, 35분 UTC=KST 동일)
+    - cron: '10 15 * * *'    # 매일 00:10 KST 전일 가동시간 리포트
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tms-data
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare data branch
+        run: |
+          REMOTE="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git clone --depth 1 --branch data "$REMOTE" data
+          else
+            mkdir data && cd data && git init -b data && git remote add origin "$REMOTE"
+          fi
+
+      - name: Collect
+        if: github.event.schedule != '10 15 * * *'
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          TMS_DB: data/tms.db
+        run: python3 tms_collector.py collect
+
+      - name: Daily report
+        if: github.event.schedule == '10 15 * * *'
+        env:
+          TMS_DB: data/tms.db
+        run: |
+          D=$(TZ=Asia/Seoul date -d yesterday +%F)
+          mkdir -p data/reports
+          python3 tms_collector.py report --date "$D" --csv "data/reports/report_$D.csv"
+
+      - name: Commit data
+        run: |
+          cd data
+          git config user.name "tms-bot"
+          git config user.email "tms-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "tms $(TZ=Asia/Seoul date '+%F %H:%M')"
+          for i in 1 2 3; do
+            git push origin data && break
+            git pull --rebase origin data
+            sleep 5
+          done
