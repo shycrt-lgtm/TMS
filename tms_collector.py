@@ -2,14 +2,17 @@
 """
 굴뚝 TMS 실시간 측정결과(/rltmMesureResult) 30분 단위 수집 · 가동여부 누적 · 전일 가동시간 리포트
 
+API 응답에는 가동상태/유량 항목이 없고 오염물질 측정값(먼지·SOx·NOx·HCl·HF·NH3·CO)만 있으므로,
+설정한 측정값 중 하나라도 기준값(기본 0) 초과이면 '발전', 전부 0이거나 결측이면 '정지'로 판정한다.
+
 사용법
-  python tms_collector.py probe  [--facility 이름] [--stack 1]   # 원본 응답 확인 (최초 1회, 필드명 확인용)
+  python tms_collector.py probe  [--facility 이름] [--stack 1]   # 원본 응답 확인
   python tms_collector.py collect                                 # 전 사업장·배출구 1회 수집 (30분마다 스케줄 실행)
   python tms_collector.py status                                  # 최신 가동/정지 현황
   python tms_collector.py report [--date 2026-09-30] [--csv out.csv]  # 일별 가동시간 (기본: 어제)
 
-인증키는 환경변수 DATA_GO_KR_KEY 에 넣어두면 config 에 키를 적지 않아도 됨.
-표준 라이브러리만 사용 (추가 설치 불필요).
+인증키는 환경변수 DATA_GO_KR_KEY. DB 경로는 환경변수 TMS_DB 로 변경 가능.
+표준 라이브러리만 사용.
 """
 import argparse
 import csv
@@ -24,8 +27,8 @@ from datetime import datetime, timedelta, timezone
 KST = timezone(timedelta(hours=9))
 HERE = os.path.dirname(os.path.abspath(__file__))
 TIME_FORMATS = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y-%m-%dT%H:%M:%S"]
-TIME_HINTS = ["dt", "time", "일시", "date"]
-FLOW_HINTS = ["flux", "flow", "유량"]  # 자동판정 시 배출유량 필드 탐색용
+DEFAULT_TIME_FIELD = "mesure_dt"
+DEFAULT_RUN_FIELDS = ["nox_mesure_value", "co_mesure_value"]
 
 
 # ---------------------------------------------------------------- 공통
@@ -63,15 +66,11 @@ def parse_time(s):
 
 # ---------------------------------------------------------------- API 호출
 def call_api(cfg, area, facility, stack):
-    params = {
-        "serviceKey": cfg.get("service_key") or os.environ.get("DATA_GO_KR_KEY", ""),
-        "areaNm": area,
-        "factManageNm": facility,
-        "stackCode": stack,
-        "type": "json",
-    }
-    # serviceKey 는 포털에서 받은 인코딩 키(%포함)를 그대로 쓰는 경우가 많아 이중 인코딩 방지
-    key = params.pop("serviceKey")
+    key = cfg.get("service_key") or os.environ.get("DATA_GO_KR_KEY", "")
+    params = {"factManageNm": facility, "stackCode": stack, "type": "json"}
+    if area:
+        params["areaNm"] = area
+    # 포털 Encoding 키(% 포함)는 그대로, Decoding 키는 인코딩해서 사용
     qs = "serviceKey=" + (key if "%" in key else urllib.parse.quote(key, safe="")) + "&" + urllib.parse.urlencode(params)
     url = cfg["endpoint"] + "?" + qs
     with urllib.request.urlopen(url, timeout=30) as r:
@@ -83,15 +82,17 @@ def call_api(cfg, area, facility, stack):
 
 
 def find_items(node):
-    """응답 JSON 에서 레코드(dict) 목록을 찾는다. (response.body.items[.item] 등 구조 차이 흡수)"""
+    """응답 JSON 에서 레코드(dict) 목록을 찾는다. 단건(dict)·다건(list)·빈 문자열 모두 처리."""
     if isinstance(node, list):
         if node and all(isinstance(x, dict) for x in node):
-            return node
+            return [x for x in node if "mesure_dt" in x or "stack_code" in x] or node
         for x in node:
             r = find_items(x)
             if r:
                 return r
     elif isinstance(node, dict):
+        if "mesure_dt" in node or "stack_code" in node:
+            return [node]  # 단건 레코드
         for k in ("items", "item", "data", "list"):
             if k in node:
                 r = find_items(node[k])
@@ -104,48 +105,48 @@ def find_items(node):
     return []
 
 
+def select_records(items, facility, stack):
+    """LIKE 검색으로 다른 사업장/배출구가 섞여 와도 해당 사업장·배출구만 남긴다."""
+    exact = [r for r in items if str(r.get("fact_manage_nm", "")).strip() == facility]
+    pool = exact or [r for r in items if facility in str(r.get("fact_manage_nm", ""))] or items
+    out = []
+    for r in pool:
+        sc = str(r.get("stack_code", "")).strip().lstrip("0")
+        if sc and sc != str(stack).strip().lstrip("0"):
+            continue
+        out.append(r)
+    return out
+
+
 # ---------------------------------------------------------------- 가동여부 판정
 def to_float(v):
     try:
-        return float(str(v).replace(",", "").strip())
+        s = str(v).replace(",", "").strip()
+        return float(s) if s else None
     except (ValueError, TypeError):
         return None
 
 
 def judge_running(rec, rule):
-    """return (running 1/0/None, 판정근거)"""
-    ops = {
-        ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
-        "<": lambda a, b: a < b, "==": lambda a, b: a == b, "!=": lambda a, b: a != b,
-    }
-    if rule and rule.get("field"):
-        field = rule["field"]
-        if field not in rec:
-            return None, f"필드없음:{field}"
-        val = to_float(rec[field])
-        if val is None:
-            return 0, f"{field}=결측"  # 결측(통신불량/정지)을 정지로 볼지는 rule.null_as 로 조정
-        thr = float(rule.get("value", 0))
-        ok = ops[rule.get("op", ">")](val, thr)
-        return int(ok), f"{field}={val}"
-    # 자동: 배출유량 계열 필드 > 0
-    for k, v in rec.items():
-        if any(h in k.lower() for h in FLOW_HINTS):
-            val = to_float(v)
-            if val is not None:
-                return int(val > 0), f"{k}={val}(auto)"
-    return None, "판정필드 없음(probe 후 config 의 run_rule 지정 필요)"
+    """return (running 1/0/None, 판정근거)
+    rule: {"fields": [...], "value": 0, "null_as": "stop"|"unknown"}
+    측정값 중 하나라도 value 초과 → 발전(1). 전부 value 이하 → 정지(0). 전부 결측 → null_as 에 따름."""
+    rule = rule or {}
+    fields = rule.get("fields") or ([rule["field"]] if rule.get("field") else DEFAULT_RUN_FIELDS)
+    thr = float(rule.get("value", 0))
+    present = {f: to_float(rec.get(f)) for f in fields}
+    present = {f: v for f, v in present.items() if v is not None}
+    if not present:
+        if rule.get("null_as") == "unknown":
+            return None, "측정값 결측"
+        return 0, "측정값 전부 결측"
+    on = any(v > thr for v in present.values())
+    return int(on), ",".join(f"{f.replace('_mesure_value', '')}={v:g}" for f, v in present.items())
 
 
-def extract_slot(rec, cfg):
-    tf = cfg.get("time_field")
-    cands = [tf] if tf else [k for k in rec if any(h in k.lower() for h in TIME_HINTS)]
-    for k in cands:
-        if k in rec:
-            dt = parse_time(rec[k])
-            if dt:
-                return dt
-    return None
+def extract_time(rec, cfg):
+    tf = cfg.get("time_field") or DEFAULT_TIME_FIELD
+    return parse_time(rec[tf]) if tf in rec else None
 
 
 # ---------------------------------------------------------------- 명령
@@ -156,15 +157,18 @@ def cmd_probe(cfg, args):
     stack = args.stack or (fac.get("stacks") or [1])[0]
     data, raw = call_api(cfg, fac.get("area", ""), fac["name"], stack)
     print(json.dumps(data, ensure_ascii=False, indent=2) if data else raw[:3000])
-    items = find_items(data) if data else []
+    items = select_records(find_items(data), fac["name"], stack) if data else []
     if items:
-        print("\n[필드 목록]", list(items[-1].keys()))
-        print("[판정 결과]", judge_running(items[-1], cfg.get("run_rule")))
+        print("\n[레코드 수]", len(items))
+        print("[필드 목록]", list(items[-1].keys()))
+        for r in items[-3:]:
+            print("[판정]", r.get(cfg.get("time_field") or DEFAULT_TIME_FIELD), judge_running(r, cfg.get("run_rule")))
 
 
 def cmd_collect(cfg, args):
     con = db_connect(cfg)
     now = datetime.now(KST)
+    shift = timedelta(minutes=30) if cfg.get("label_is_end") else timedelta(0)
     ok = fail = 0
     for fac in cfg["facilities"]:
         stacks = fac.get("stacks")
@@ -174,29 +178,35 @@ def cmd_collect(cfg, args):
         for st in stacks:
             try:
                 data, raw = call_api(cfg, fac.get("area", ""), fac["name"], st)
-                items = find_items(data) if data else []
             except Exception as e:  # 네트워크 오류는 다음 주기에 재시도
                 print(f"[ERR] {fac['name']}#{st}: {e}", file=sys.stderr)
                 fail += 1
                 continue
-            if not items:
+            if data is None:
+                print(f"[ERR] {fac['name']}#{st}: JSON 아님 -> {raw[:200]}", file=sys.stderr)
+                fail += 1
+                continue
+            recs = select_records(find_items(data), fac["name"], st)
+            if not recs:
                 misses += 1
                 if auto and misses >= 2:
                     break  # 자동탐색: 연속 2개 비면 종료
                 continue
             misses = 0
-            rec = items[-1]  # 최신 레코드
-            mdt = extract_slot(rec, cfg) or now
-            slot = floor30(mdt)
-            running, basis = judge_running(rec, cfg.get("run_rule"))
-            con.execute(
-                "INSERT OR REPLACE INTO readings VALUES(?,?,?,?,?,?,?,?)",
-                (fac["name"], str(st), slot.isoformat(), mdt.isoformat(), running, basis,
-                 json.dumps(rec, ensure_ascii=False), now.isoformat()),
-            )
+            for rec in recs:  # 여러 건이 오면 모두 저장 (누락 구간 보충)
+                mdt = extract_time(rec, cfg) or now
+                slot = floor30(mdt) - shift
+                running, basis = judge_running(rec, cfg.get("run_rule"))
+                con.execute(
+                    "INSERT OR REPLACE INTO readings VALUES(?,?,?,?,?,?,?,?)",
+                    (fac["name"], str(st), slot.isoformat(), mdt.isoformat(), running, basis,
+                     json.dumps(rec, ensure_ascii=False), now.isoformat()),
+                )
             ok += 1
     con.commit()
     print(f"{now:%Y-%m-%d %H:%M} 수집 성공 {ok}건 / 실패 {fail}건")
+    if ok == 0 and fail > 0:
+        sys.exit(1)  # 전부 실패하면 Actions 에서 빨간 표시
 
 
 def cmd_status(cfg, args):
