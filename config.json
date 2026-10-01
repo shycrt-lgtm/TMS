@@ -6,6 +6,6 @@
   "time_field": "",
   "run_rule": { "field": "", "op": ">", "value": 0 },
   "facilities": [
-    { "area": "서울", "name": "노원자원회수시설", "stacks": [1] }
+    { "area": "", "name": "에스파워", "stacks": [1, 2] }
   ]
 }
