@@ -1,0 +1,11 @@
+{
+  "endpoint": "https://apis.data.go.kr/B552584/cleansys/rltmMesureResult",
+  "service_key": "",
+  "db_path": "tms.db",
+  "max_stack": 10,
+  "time_field": "",
+  "run_rule": { "field": "", "op": ">", "value": 0 },
+  "facilities": [
+    { "area": "서울", "name": "노원자원회수시설", "stacks": [1] }
+  ]
+}
