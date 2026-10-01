@@ -20,6 +20,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -73,8 +74,17 @@ def call_api(cfg, area, facility, stack):
     # 포털 Encoding 키(% 포함)는 그대로, Decoding 키는 인코딩해서 사용
     qs = "serviceKey=" + (key if "%" in key else urllib.parse.quote(key, safe="")) + "&" + urllib.parse.urlencode(params)
     url = cfg["endpoint"] + "?" + qs
-    with urllib.request.urlopen(url, timeout=30) as r:
-        body = r.read().decode("utf-8", errors="replace")
+    last_err = None
+    for attempt in range(1, 4):  # 일시적 접속 지연 대비: 최대 3회 (20초 제한, 5초·10초 간격)
+        try:
+            with urllib.request.urlopen(url, timeout=20) as r:
+                body = r.read().decode("utf-8", errors="replace")
+            break
+        except Exception as e:
+            last_err = e
+            if attempt == 3:
+                raise
+            time.sleep(5 * attempt)
     try:
         return json.loads(body), body
     except json.JSONDecodeError:
@@ -175,7 +185,11 @@ def cmd_collect(cfg, args):
     now = datetime.now(KST)
     shift = timedelta(minutes=30) if cfg.get("label_is_end") else timedelta(0)
     ok = fail = 0
+    net_fail = 0  # 연속 접속 실패 횟수 (3회 연속이면 중단: 서버 접속 불가로 판단)
+    abort = False
     for fac in cfg["facilities"]:
+        if abort:
+            break
         stacks = fac.get("stacks")
         auto = not stacks
         stacks = stacks or list(range(1, int(cfg.get("max_stack", 10)) + 1))
@@ -186,7 +200,13 @@ def cmd_collect(cfg, args):
             except Exception as e:  # 네트워크 오류는 다음 주기에 재시도
                 print(f"[ERR] {fac['name']}#{st}: {e}", file=sys.stderr)
                 fail += 1
+                net_fail += 1
+                if net_fail >= 3:
+                    print("[중단] 연속 3회 접속 실패 - 이번 주기 수집을 중단합니다", file=sys.stderr)
+                    abort = True
+                    break
                 continue
+            net_fail = 0
             if data is None:
                 print(f"[ERR] {fac['name']}#{st}: JSON 아님 -> {raw[:200]}", file=sys.stderr)
                 fail += 1
