@@ -152,11 +152,16 @@ def extract_time(rec, cfg):
 # ---------------------------------------------------------------- 명령
 def cmd_probe(cfg, args):
     fac = next((f for f in cfg["facilities"] if not args.facility or f["name"] == args.facility), None)
+    if not fac and args.facility:
+        fac = {"name": args.facility, "area": ""}  # config 에 없어도 입력한 이름으로 바로 조회
     if not fac:
-        sys.exit("config 에 해당 사업장 없음")
+        sys.exit("조회할 사업장 이름이 없음")
     stack = args.stack or (fac.get("stacks") or [1])[0]
     data, raw = call_api(cfg, fac.get("area", ""), fac["name"], stack)
     print(json.dumps(data, ensure_ascii=False, indent=2) if data else raw[:3000])
+    if data:
+        names = sorted({str(r.get("fact_manage_nm", "")).strip() for r in find_items(data)})
+        print("\n[조회된 사업장명]", names if names else "없음 (이름이 API 의 사업장명과 다르거나 해당 배출구 없음)")
     items = select_records(find_items(data), fac["name"], stack) if data else []
     if items:
         print("\n[레코드 수]", len(items))
@@ -193,13 +198,18 @@ def cmd_collect(cfg, args):
                     break  # 자동탐색: 연속 2개 비면 종료
                 continue
             misses = 0
+            found = {str(r.get("fact_manage_nm", "")).strip() for r in recs}
+            if len(found) > 1 or (found and fac["name"] not in found):
+                print(f"[주의] '{fac['name']}' 검색 결과 사업장명: {sorted(found)} -> config 이름을 정확히 맞추세요",
+                      file=sys.stderr)
             for rec in recs:  # 여러 건이 오면 모두 저장 (누락 구간 보충)
+                fname = str(rec.get("fact_manage_nm") or fac["name"]).strip()  # API 가 준 실제 사업장명으로 저장
                 mdt = extract_time(rec, cfg) or now
                 slot = floor30(mdt) - shift
                 running, basis = judge_running(rec, cfg.get("run_rule"))
                 con.execute(
                     "INSERT OR REPLACE INTO readings VALUES(?,?,?,?,?,?,?,?)",
-                    (fac["name"], str(st), slot.isoformat(), mdt.isoformat(), running, basis,
+                    (fname, str(st), slot.isoformat(), mdt.isoformat(), running, basis,
                      json.dumps(rec, ensure_ascii=False), now.isoformat()),
                 )
             ok += 1
