@@ -80,6 +80,24 @@ const GROUPS = [
 const INFO = {
   // "㈜에스파워": {cap: "", lng: ""},
 };
+// ▼ LNG 도입 구분: [사업장명 패턴, 호기 패턴(없으면 전체), 값] — 위에서부터 먼저 맞는 규칙 적용, 없으면 기본값
+const LNG_DEFAULT = "KOGAS 평균";
+const LNG_RULES = [
+  [/광명사업단/, null, "도시가스"],
+  [/안산도시개발/, null, "도시가스"],
+  [/GS파워\(안양\)/, /1호기/, "직도입"],
+  [/GS파워\(안양\)/, /2호기/, "KOGAS 평균"],
+  [/GS파워\(부천\)/, null, "KOGAS 평균"],
+  [/청라에너지|김포/, null, "KOGAS 개별"],
+  [/나래ES\(위례\)/, null, "직도입"],
+  [/나래ES\(하남\)/, null, "KOGAS 평균"],
+  [/통영에코파워/, null, "직도입"],
+  [/지피에스/, null, "직도입"],
+];
+const lngOf = (fac, unit) => {
+  const r = LNG_RULES.find(([f, u]) => f.test(fac) && (!u || u.test(unit)));
+  return r ? r[2] : LNG_DEFAULT;
+};
 const groupOf = n => (GROUPS.find(g => g.test(n)) || {}).name || "";
 
 const $ = id => document.getElementById(id);
@@ -146,7 +164,7 @@ async function main(){
     if (d.facSpan) h += `<td class="fac" ${d.grp ? "" : 'colspan="2"'}>${esc(d.fac)}${d.multi ? " " + esc(d.unit) : ""}</td>`;
     const info = INFO[d.fac + "|" + d.unit] || INFO[d.fac] || {};
     h += `<td class="info">${info.cap ? esc(info.cap) : "-"}</td>`;
-    h += `<td class="info">${info.lng ? esc(info.lng) : "-"}</td>`;
+    h += `<td class="info">${esc(info.lng || lngOf(d.fac, d.unit))}</td>`;
 
     let st;
     if (d.noLatest) st = `<span class="dash">-</span>`;
