@@ -1,0 +1,33 @@
+name: tms-probe
+
+# 최초 1회: API 응답 원본과 필드 목록을 Actions 로그에 출력 (판정 기준 확정용)
+on:
+  workflow_dispatch:
+    inputs:
+      facility:
+        description: '사업장명 (config.json 에 적은 이름, 비우면 첫 번째 사업장)'
+        required: false
+        default: ''
+      stack:
+        description: '배출구 번호'
+        required: false
+        default: '1'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          FAC: ${{ inputs.facility }}
+          STK: ${{ inputs.stack }}
+        run: |
+          if [ -n "$FAC" ]; then
+            python3 tms_collector.py probe --facility "$FAC" --stack "$STK"
+          else
+            python3 tms_collector.py probe --stack "$STK"
+          fi
