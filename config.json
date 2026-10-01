@@ -2,6 +2,7 @@
   "endpoint": "https://apis.data.go.kr/B552584/cleansys/rltmMesureResult",
   "service_key": "",
   "db_path": "tms.db",
+  "slot_minutes": 30,
   "facilities": [
     {
       "area": "",

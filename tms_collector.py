@@ -283,7 +283,7 @@ def cmd_collect(cfg, args):
     con = db_connect(cfg)
     now = datetime.now(KST)
     shift = timedelta(minutes=30) if cfg.get("label_is_end") else timedelta(0)
-    ok = fail = 0
+    ok = fail = new_rows = 0
     net_fail = 0  # 연속 접속 실패 횟수 (3회 연속이면 중단: 서버 접속 불가로 판단)
     for fac in cfg["facilities"]:
         want = {norm_stack(s) for s in stacks_to_collect(fac)}  # 비어 있으면 전체 배출구 저장
@@ -323,14 +323,22 @@ def cmd_collect(cfg, args):
             mdt = extract_time(rec, cfg) or now
             slot = floor30(mdt) - shift
             running, basis = judge_running(rec, cfg.get("run_rule"))
-            con.execute(
-                "INSERT OR REPLACE INTO readings VALUES(?,?,?,?,?,?,?,?)",
-                (fname, stack, slot.isoformat(), mdt.isoformat(), running, basis,
-                 json.dumps(rec, ensure_ascii=False), now.isoformat()),
-            )
+            key = (fname, stack, slot.isoformat())
+            old = con.execute("SELECT running, basis FROM readings WHERE facility=? AND stack=? AND slot_ts=?",
+                              key).fetchone()
+            raw_s = json.dumps(rec, ensure_ascii=False, separators=(",", ":"))
+            if old is None:  # 새 슬롯만 추가 (같은 값을 다시 받으면 DB 를 건드리지 않아 불필요한 커밋 방지)
+                con.execute("INSERT INTO readings VALUES(?,?,?,?,?,?,?,?)",
+                            (*key, mdt.isoformat(), running, basis, raw_s, now.isoformat()))
+                new_rows += 1
+            elif old != (running, basis):  # 같은 슬롯의 값이 정정된 경우에만 갱신
+                con.execute("UPDATE readings SET measured_at=?, running=?, basis=?, raw=?, fetched_at=? "
+                            "WHERE facility=? AND stack=? AND slot_ts=?",
+                            (mdt.isoformat(), running, basis, raw_s, now.isoformat(), *key))
+                new_rows += 1
         ok += 1
     con.commit()
-    print(f"{now:%Y-%m-%d %H:%M} 수집 성공 {ok}개 사업장 / 실패 {fail}개")
+    print(f"{now:%Y-%m-%d %H:%M} 수집 성공 {ok}개 사업장 / 실패 {fail}개 / 신규·정정 {new_rows}건")
     if ok == 0 and fail > 0:
         sys.exit(1)  # 전부 실패하면 Actions 에서 빨간 표시
 
