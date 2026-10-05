@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-06 08:43",
+ "generated_at": "2026-10-06 08:55",
  "latest_slot": "2026-10-06T07:30:00+09:00",
  "items": [
   {
@@ -34,7 +34,7 @@
    "facility": "GS파워(안양)",
    "unit": "2호기",
    "stacks": "8",
-   "slot": "2026-10-06T07:00:00+09:00",
+   "slot": "2026-10-06T07:30:00+09:00",
    "running": 1
   },
   {
@@ -42,13 +42,13 @@
    "unit": "전체",
    "stacks": "1+2+3",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 0
   },
   {
    "facility": "청라에너지(김포)",
    "unit": "전체",
    "stacks": "5",
-   "slot": "2026-10-06T07:00:00+09:00",
+   "slot": "2026-10-06T07:30:00+09:00",
    "running": 0
   },
   {
@@ -56,7 +56,7 @@
    "unit": "전체",
    "stacks": "1+2",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 1
   },
   {
    "facility": "위드인천에너지(주)",
@@ -91,14 +91,14 @@
    "unit": "전체",
    "stacks": "1+2+3",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 0
   },
   {
    "facility": "포천파워㈜",
    "unit": "1호기",
    "stacks": "1+2",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 0
   },
   {
    "facility": "포천파워㈜",
@@ -119,14 +119,14 @@
    "unit": "1호기",
    "stacks": "1+2",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 1
   },
   {
    "facility": "동두천드림파워㈜",
    "unit": "2호기",
    "stacks": "3+4",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 1
   },
   {
    "facility": "통영에코파워(주)",
@@ -140,7 +140,7 @@
    "unit": "전체",
    "stacks": "6+7",
    "slot": "2026-10-06T07:30:00+09:00",
-   "running": null
+   "running": 0
   }
  ]
 }
