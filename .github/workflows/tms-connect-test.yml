@@ -1,0 +1,24 @@
+name: TMS 접속 테스트 (CleanSYS)
+
+# 수동 실행 전용: Actions 탭 > "TMS 접속 테스트" > Run workflow
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 사업장 상세 호출 (에스파워 150609)
+        run: |
+          curl -sS -m 30 -w "\nHTTP %{http_code}\n" -X POST "https://cleansys.or.kr/selectOdaOpenFactDetail.do" \
+            -H "Referer: https://cleansys.or.kr/index.do" \
+            -H "X-Requested-With: XMLHttpRequest" \
+            -H "User-Agent: Mozilla/5.0 (compatible; TMS-collector)" \
+            --data "factCode=150609" | head -c 1500
+      - name: 24시간 호출 (에스파워 배출구1)
+        run: |
+          curl -sS -m 30 -w "\nHTTP %{http_code}\n" -X POST "https://cleansys.or.kr/selectOdaOpenDay.do" \
+            -H "Referer: https://cleansys.or.kr/index.do" \
+            -H "X-Requested-With: XMLHttpRequest" \
+            -H "User-Agent: Mozilla/5.0 (compatible; TMS-collector)" \
+            --data "factCode=150609&stackCode=1&itemCd=3" | head -c 1500
