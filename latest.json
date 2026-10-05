@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-05 23:51",
+ "generated_at": "2026-10-06 00:04",
  "latest_slot": "2026-10-05T22:30:00+09:00",
  "items": [
   {
@@ -7,7 +7,7 @@
    "unit": "전체",
    "stacks": "1+2",
    "slot": "2026-10-05T22:30:00+09:00",
-   "running": null
+   "running": 0
   },
   {
    "facility": "광명사업단",
