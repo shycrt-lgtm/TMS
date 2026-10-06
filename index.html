@@ -47,7 +47,7 @@
   th{background:#f8fafc;font-weight:700;color:#334155;line-height:1.4}
   th small{display:block;font-weight:400;color:#64748b;font-size:11px}
   td.grp{background:#f8fafc;font-weight:700;color:#001f3f}
-  td.lab{font-weight:700;line-height:1.35}
+  td.lab{font-weight:700;line-height:1.35;padding:12px 6px}
   td.info{white-space:nowrap}
   td.state{width:120px}
   td.hours{width:140px;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -107,8 +107,10 @@
     <ul>
       <li><b>현재상태</b> : <span class="dot sm"></span> 발전중(NOx·CO 배출 측정) &nbsp;/&nbsp; <span class="dash">-</span> 가동중지 &nbsp;/&nbsp; <span title="판정불가"><svg class="warn" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 L21.2 19.4 Q21.9 20.8 20.4 20.8 H3.6 Q2.1 20.8 2.8 19.4 Z" fill="#fff" stroke="#dc2626" stroke-width="2.2" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.6" rx="1" fill="#dc2626"/><circle cx="12" cy="17.2" r="1.15" fill="#dc2626"/></svg></span> 판정불가(미수신·보수중·확인중 등)</li>
       <li>가장 최근 조회된 30분 슬롯 기준이며, 측정자료는 실제 시각보다 약 1~1.5시간 지연되어 게시됨</li>
+      <li><b>금일 발전시간</b> : 배출구 중 하나라도 배출이 측정된 30분 슬롯을 기준으로 산정한, 금일 0시부터 최근 조회 시각까지의 발전시간 누계 (슬롯 수 × 0.5시간, 추정치)</li>
       <li><b>전일 발전시간</b> : 배출구 중 하나라도 배출이 측정된 30분 슬롯 수 × 0.5시간 (추정치)</li>
       <li>측정값이 없는 구간은 가동중지로 간주 (통신 미수신 구간이 포함될 수 있음)</li>
+      <li><span class="unk">※</span> 표시 : 판정불가 또는 누락 슬롯이 포함된 값 (실제 발전시간과 차이 가능)</li>
     </ul>
   </div>
 
@@ -198,6 +200,7 @@ function layoutOf(fac, unit, multi){
   return multi ? [[clean(fac), 2], [unit, 2]] : [[clean(fac), 4]];
 }
 
+const LBR = {"GS파워": "GS<br>파워", "나래ES": "나래<br>ES"};   // 사업장 열 줄바꿈 표시
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -286,7 +289,8 @@ async function main(day = yesterdayKST()){
 
   // 기본 행 목록: 최신 상태 파일 기준, 없으면 전일 리포트 기준
   let rows;
-  if (latest) rows = latest.items.map(i => ({fac: i.facility, unit: i.unit, slot: i.slot, run: i.running}));
+  if (latest) rows = latest.items.map(i => ({fac: i.facility, unit: i.unit, slot: i.slot, run: i.running,
+      th: i.today_hours, ts: i.today_slots, tu: i.today_upto, tp: i.today_partial}));
   else rows = Object.keys(rep).map(k => { const [fac, unit] = k.split("|"); return {fac, unit, slot: null, run: null, noLatest: true}; });
   if (!rows.length){ $("out").textContent = "표시할 데이터가 아직 없습니다. (첫 수집 이후 표시됩니다)"; return; }
 
@@ -307,16 +311,19 @@ async function main(day = yesterdayKST()){
   }));
 
   const ls = latest && latest.latest_slot;
+  const tus = latest ? latest.items.map(i => i.today_upto).filter(Boolean).sort() : [];
+  const tUpto = tus.length ? tus[tus.length - 1] : null;      // 금일 누계 반영 기준(최근 조회 슬롯)
   const [yy, mm, dd] = day.split("-").map(Number);
   const wk = "일월화수목금토"[new Date(Date.UTC(yy, mm-1, dd)).getUTCDay()];
   $("sub").innerHTML = `기준일: <b>${yy}년 ${pad(mm)}월 ${pad(dd)}일(${wk})</b> | 에너지사업총괄`;
 
-  let h = `<table><colgroup><col style="width:72px"><col style="width:118px"><col style="width:84px"><col style="width:72px"><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th>
+  let h = `<table><colgroup><col style="width:58px"><col style="width:62px"><col style="width:58px"><col style="width:58px"><col><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th>
     <th>현재상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
+    <th>금일 발전시간<small>${tUpto ? shortTs(tUpto) + " 기준" : "-"}</small></th>
     <th>전일 발전시간<small>${day}</small></th><th>발전용량</th><th>LNG</th></tr></thead><tbody>`;
   for (const d of rows){
     h += "<tr>";
-    d.cells.forEach((c, k) => { if (!c.skip) h += `<td class="lab${c[2] === 0 && c[1] === 1 ? " grp" : ""}" colspan="${c[1]}" rowspan="${c.rs}">${esc(c[0])}</td>`; });
+    d.cells.forEach((c, k) => { if (!c.skip) h += `<td class="lab${c[2] === 0 && c[1] === 1 ? " grp" : ""}" colspan="${c[1]}" rowspan="${c.rs}">${LBR[c[0]] || esc(c[0])}</td>`; });
     let st;
     if (d.noLatest) st = `<span class="dash">-</span>`;
     else if (d.run === 1) st = `<span class="dot" title="발전중"></span>`;
@@ -324,6 +331,11 @@ async function main(day = yesterdayKST()){
     else st = `<span title="판정불가"><svg class="warn" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 L21.2 19.4 Q21.9 20.8 20.4 20.8 H3.6 Q2.1 20.8 2.8 19.4 Z" fill="#fff" stroke="#dc2626" stroke-width="2.2" stroke-linejoin="round"/><rect x="11" y="9" width="2" height="5.6" rx="1" fill="#dc2626"/><circle cx="12" cy="17.2" r="1.15" fill="#dc2626"/></svg></span>`;
     if (d.slot && ls && d.slot !== ls) st += `<span class="t">${shortTs(d.slot)}</span>`;   // 다른 시각 데이터면 표기
     h += `<td class="state">${st}</td>`;
+
+    let tdy = `<span class="dash">-</span>`;                     // 금일 발전시간: 0시~최근 조회 슬롯 누계
+    if (typeof d.th === "number" && d.ts > 0)
+      tdy = `<b>${d.th.toFixed(1)}</b> h${d.tp ? ` <span class="unk" title="판정불가·누락 슬롯 포함">※</span>` : ""}`;
+    h += `<td class="hours">${tdy}</td>`;
 
     let hr = `<span class="dash">-</span>`;
     if (d.rep && !isNaN(d.rep.on)){
