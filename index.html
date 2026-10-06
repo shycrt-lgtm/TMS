@@ -231,8 +231,8 @@ async function getText(path){
 
 
 // ---- 전일 발전시간 클릭 → 0시~24시 가동(1)/정지(0) 계단 그래프 팝업
-let SLOTS = null;
-function drawSlots(title, sub, arr){
+let SLOTS = null, TODAY = {};
+function drawSlots(title, sub, arr, upto){   // upto: 금일 그래프일 때 마지막 게시 슬롯 번호(그 뒤는 미게시)
   const W = 800, H = 230, L = 46, R = 14, T = 14, B = 36, pw = W - L - R, ph = H - T - B, sw = pw / 48;
   const y1 = T + 6, y0 = T + ph - 2;
   const v = i => arr[i] === 1 ? 1 : 0;
@@ -245,6 +245,7 @@ function drawSlots(title, sub, arr){
   g += `<line x1="${L}" y1="${y1}" x2="${L + pw}" y2="${y1}" stroke="#e2e8f0" stroke-dasharray="3 3"/><line x1="${L}" y1="${y0}" x2="${L + pw}" y2="${y0}" stroke="#94a3b8"/>`;
   let a = "", d = "";
   for (let i = 0; i < 48; i++){                                   // 발전 구간 면 + 계단선
+    if (upto !== undefined && i > upto) break;
     const x = L + i * sw, y = v(i) ? y1 : y0;
     if (v(i)) a += `<rect x="${x}" y="${y1}" width="${sw}" height="${y0 - y1}" fill="#16a34a" opacity=".16"/>`;
     d += (i === 0 ? `M${x},${y}` : `L${x},${y}`) + `L${x + sw},${y}`;
@@ -253,7 +254,7 @@ function drawSlots(title, sub, arr){
   let hov = "";
   for (let i = 0; i < 48; i++){                                   // 마우스 올리면 시각·상태 표시
     const hh = Math.floor(i / 2), mm = i % 2 ? "30" : "00", e = i + 1, eh = Math.floor(e / 2), em = e % 2 ? "30" : "00";
-    const st = arr[i] === 1 ? "발전(1)" : arr[i] === 0 ? "정지(0)" : "판정불가·미수신(0)";
+    const st = upto !== undefined && i > upto ? "아직 게시되지 않음" : arr[i] === 1 ? "발전(1)" : arr[i] === 0 ? "정지(0)" : "판정불가·미수신(0)";
     hov += `<rect class="hv" x="${L + i * sw}" y="${T}" width="${sw}" height="${ph}" fill="transparent" data-t="${hh}:${mm} ~ ${eh}:${em} · ${st}"/>`;
   }
   $("pTitle").innerHTML = `${esc(title)}<small>${esc(sub)}</small>`;
@@ -270,6 +271,9 @@ document.addEventListener("click", e => {
   if (b && SLOTS){
     const k = b.dataset.k, arr = SLOTS.units[k];
     if (arr) drawSlots(b.dataset.name, SLOTS.day + " 시간대별 발전 여부", arr);
+  } else if (b && b.dataset.today){
+    const t = TODAY[b.dataset.k];
+    if (t) drawSlots(b.dataset.name, t.day + " 시간대별 발전 여부 (최근 게시 슬롯까지)", t.arr, t.upto);
   } else if (e.target.id === "ov" || e.target.id === "pClose") $("ov").classList.remove("on");
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") $("ov").classList.remove("on"); });
@@ -290,7 +294,7 @@ async function main(day = yesterdayKST()){
   // 기본 행 목록: 최신 상태 파일 기준, 없으면 전일 리포트 기준
   let rows;
   if (latest) rows = latest.items.map(i => ({fac: i.facility, unit: i.unit, slot: i.slot, run: i.running,
-      th: i.today_hours, ts: i.today_slots, tu: i.today_upto, tp: i.today_partial}));
+      th: i.today_hours, ts: i.today_slots, tu: i.today_upto, tp: i.today_partial, ta: i.today_arr}));
   else rows = Object.keys(rep).map(k => { const [fac, unit] = k.split("|"); return {fac, unit, slot: null, run: null, noLatest: true}; });
   if (!rows.length){ $("out").textContent = "표시할 데이터가 아직 없습니다. (첫 수집 이후 표시됩니다)"; return; }
 
@@ -332,9 +336,12 @@ async function main(day = yesterdayKST()){
     if (d.slot && ls && d.slot !== ls) st += `<span class="t">${shortTs(d.slot)}</span>`;   // 다른 시각 데이터면 표기
     h += `<td class="state">${st}</td>`;
 
+    if (Array.isArray(d.ta) && d.tu){ const idx = parseInt(d.tu.slice(11, 13), 10) * 2 + (parseInt(d.tu.slice(14, 16), 10) >= 30 ? 1 : 0); TODAY[d.fac + "|" + d.unit] = {day: d.tu.slice(0, 10), arr: d.ta, upto: idx}; }
     let tdy = `<span class="dash">-</span>`;                     // 금일 발전시간: 0시~최근 조회 슬롯 누계
     if (typeof d.th === "number" && d.ts > 0)
-      tdy = `<b>${d.th.toFixed(1)}</b> h${d.tp ? ` <span class="unk" title="판정불가·누락 슬롯 포함">※</span>` : ""}`;
+      tdy = (Array.isArray(d.ta) && d.tu
+          ? `<button type="button" class="hbtn" data-today="1" data-k="${esc(d.fac + "|" + d.unit)}" data-name="${esc(d.fac + (d.multi || d.unit !== "1" ? " " + d.unit : ""))}" title="클릭하면 시간대별 그래프"><b>${d.th.toFixed(1)}</b> h</button>`
+          : `<b>${d.th.toFixed(1)}</b> h`) + `${d.tp ? ` <span class="unk" title="판정불가·누락 슬롯 포함">※</span>` : ""}`;
     h += `<td class="hours">${tdy}</td>`;
 
     let hr = `<span class="dash">-</span>`;
