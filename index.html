@@ -268,12 +268,12 @@ function drawSlots(title, sub, arr, upto){   // upto: 금일 그래프일 때 �
 }
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".hbtn");
-  if (b && SLOTS){
-    const k = b.dataset.k, arr = SLOTS.units[k];
-    if (arr) drawSlots(b.dataset.name, SLOTS.day + " 시간대별 발전 여부", arr);
-  } else if (b && b.dataset.today){
+  if (b && b.dataset.today){                       // 금일 발전시간 버튼: 오늘 0시~최근 게시 슬롯
     const t = TODAY[b.dataset.k];
     if (t) drawSlots(b.dataset.name, t.day + " 시간대별 발전 여부 (최근 게시 슬롯까지)", t.arr, t.upto);
+  } else if (b && SLOTS){                          // 전일 발전시간 버튼
+    const k = b.dataset.k, arr = SLOTS.units[k];
+    if (arr) drawSlots(b.dataset.name, SLOTS.day + " 시간대별 발전 여부", arr);
   } else if (e.target.id === "ov" || e.target.id === "pClose") $("ov").classList.remove("on");
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") $("ov").classList.remove("on"); });
