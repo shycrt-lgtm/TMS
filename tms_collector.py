@@ -523,12 +523,25 @@ def cmd_latest(cfg, args):
     """단위(호기)별 가장 최근 슬롯의 발전상태를 JSON 으로 저장 (화면 표시용)."""
     con = db_connect(cfg)
     items = []
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    today_units = build_unit_status(con, cfg, today)
+    per = detect_interval(cfg, today_units) / 60 if today_units else 0.5
+    tmap = {(d, u): st for d, u, _, st in today_units}
     for dbf, unit, stacks, status in build_unit_status(con, cfg):
+        ts_ = tmap.get((dbf, unit), {})
+        vals = list(ts_.values())
+        extra = {  # 금일(0시~최근 게시 슬롯) 누계: 발전 슬롯 수 x 슬롯 길이. 판정불가·누락 슬롯이 있으면 today_partial=true
+            "today_hours": vals.count(1) * per,
+            "today_on_slots": vals.count(1),
+            "today_slots": len(vals),
+            "today_upto": max(ts_) if ts_ else None,
+            "today_partial": vals.count(None) > 0,
+        }
         if not status:
-            items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": None, "running": None})
+            items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": None, "running": None, **extra})
             continue
         slot = max(status)
-        items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": slot, "running": status[slot]})
+        items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": slot, "running": status[slot], **extra})
     slots = [i["slot"] for i in items if i["slot"]]
     out = {"generated_at": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
            "latest_slot": max(slots) if slots else None, "items": items}
