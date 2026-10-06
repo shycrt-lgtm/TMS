@@ -537,6 +537,14 @@ def cmd_latest(cfg, args):
             "today_upto": max(ts_) if ts_ else None,
             "today_partial": vals.count(None) > 0,
         }
+        arr = [None] * 48  # 금일 0시~ 30분 단위 48칸 (1=발전 0=정지 null=판정불가·미게시) — 화면 팝업 그래프용
+        for t_, v_ in ts_.items():
+            tt = datetime.fromisoformat(t_)
+            i_ = tt.hour * 2 + (1 if tt.minute >= 30 else 0)
+            arr[i_] = v_
+            if per >= 1 and i_ + 1 < 48:
+                arr[i_ + 1] = v_
+        extra["today_arr"] = arr
         if not status:
             items.append({"facility": dbf, "unit": unit, "stacks": "+".join(stacks), "slot": None, "running": None, **extra})
             continue
