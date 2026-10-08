@@ -10,21 +10,46 @@
       "fact_code": "150609",
       "fact_name": "㈜에스파워",
       "name": "에스파워",
-      "exclude": ["디에스파워"],
-      "units": [ {"label": "전체", "stacks": [1, 2]} ]
+      "exclude": [
+        "디에스파워"
+      ],
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150311",
       "fact_name": "㈜삼천리",
       "name": "삼천리",
       "display": "광명사업단",
-      "units": [ {"label": "전체", "stacks": [1, 2]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150074",
       "fact_name": "안산도시개발㈜",
       "name": "안산도시개발",
-      "units": [ {"label": "배출구2", "stacks": [2]} ]
+      "units": [
+        {
+          "label": "배출구2",
+          "stacks": [
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150063",
@@ -32,8 +57,18 @@
       "name": "안양열병합",
       "display": "GS파워(안양)",
       "units": [
-        {"label": "1호기", "stacks": [7]},
-        {"label": "2호기", "stacks": [8]}
+        {
+          "label": "1호기",
+          "stacks": [
+            7
+          ]
+        },
+        {
+          "label": "2호기",
+          "stacks": [
+            8
+          ]
+        }
       ]
     },
     {
@@ -41,89 +76,209 @@
       "fact_name": "GS파워㈜부천열병합발전처",
       "name": "부천열병합",
       "display": "GS파워(부천)",
-      "units": [ {"label": "전체", "stacks": [1, 2, 3]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2,
+            3
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150858",
       "fact_name": "한국서부발전(주) 김포발전본부",
       "name": "김포발전본부",
       "display": "청라에너지(김포)",
-      "units": [ {"label": "전체", "stacks": [5]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            5
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150319",
       "fact_name": "인천종합에너지㈜",
       "name": "인천종합에너지",
-      "units": [ {"label": "전체", "stacks": [1, 2]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150171",
       "fact_name": "위드인천에너지(주)",
       "name": "위드인천에너지",
-      "units": [ {"label": "전체", "stacks": [1]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "fact_code": "150014",
+      "fact_name": "㈜지에스반월열병합발전",
+      "name": "지에스반월열병합",
+      "display": "GS E&R(반월)",
+      "auto_stacks": true
     },
     {
       "fact_code": "150758",
       "fact_name": "나래에너지서비스㈜",
       "name": "나래에너지서비스",
-      "exclude": ["하남사업소"],
+      "exclude": [
+        "하남사업소"
+      ],
       "display": "나래ES(위례)",
-      "units": [ {"label": "전체", "stacks": [1]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150629",
       "fact_name": "나래에너지서비스㈜하남사업소",
       "name": "나래에너지서비스㈜하남사업소",
       "display": "나래ES(하남)",
-      "units": [ {"label": "전체", "stacks": [1]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150630",
       "fact_name": "디에스파워㈜",
       "name": "디에스파워",
-      "units": [ {"label": "전체", "stacks": [1, 2]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150602",
       "fact_name": "평택에너지앤파워(주)",
       "name": "평택에너지앤파워",
-      "units": [ {"label": "전체", "stacks": [1, 2, 3]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2,
+            3
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150620",
       "fact_name": "포천파워㈜",
       "name": "포천파워",
       "units": [
-        {"label": "1호기", "stacks": [1, 2]},
-        {"label": "2호기", "stacks": [3, 4]}
+        {
+          "label": "1호기",
+          "stacks": [
+            1,
+            2
+          ]
+        },
+        {
+          "label": "2호기",
+          "stacks": [
+            3,
+            4
+          ]
+        }
       ]
     },
     {
       "fact_code": "150721",
       "fact_name": "포천민자발전㈜",
       "name": "포천민자",
-      "units": [ {"label": "전체", "stacks": [1, 2, 3]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2,
+            3
+          ]
+        }
+      ]
     },
     {
       "fact_code": "150608",
       "fact_name": "동두천드림파워㈜",
       "name": "동두천드림파워",
       "units": [
-        {"label": "1호기", "stacks": [1, 2]},
-        {"label": "2호기", "stacks": [3, 4]}
+        {
+          "label": "1호기",
+          "stacks": [
+            1,
+            2
+          ]
+        },
+        {
+          "label": "2호기",
+          "stacks": [
+            3,
+            4
+          ]
+        }
       ]
     },
     {
       "fact_code": "130468",
       "fact_name": "통영에코파워(주)",
       "name": "통영에코파워",
-      "units": [ {"label": "전체", "stacks": [1, 2]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     {
       "fact_code": "131068",
       "fact_name": "울산 지피에스 주식회사",
       "name": "지피에스",
-      "units": [ {"label": "전체", "stacks": [6, 7]} ]
+      "units": [
+        {
+          "label": "전체",
+          "stacks": [
+            6,
+            7
+          ]
+        }
+      ]
     }
   ]
 }
