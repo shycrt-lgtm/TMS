@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-09 03:43",
+ "generated_at": "2026-10-09 04:03",
  "latest_slot": "2026-10-09T02:30:00+09:00",
  "items": [
   {
@@ -689,7 +689,7 @@
    "unit": "2호기",
    "stacks": "3+4",
    "slot": "2026-10-09T02:30:00+09:00",
-   "running": null,
+   "running": 0,
    "today_hours": 0.0,
    "today_on_slots": 0,
    "today_slots": 6,
@@ -701,7 +701,7 @@
     null,
     null,
     null,
-    null,
+    0,
     null,
     null,
     null,
