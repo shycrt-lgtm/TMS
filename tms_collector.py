@@ -144,6 +144,15 @@ def fetch_detail(cfg, fact_code):
     return data
 
 
+
+def fetch_stack_now(cfg, fact_code, stack):
+    """배출구별 '최신 슬롯' 상태. 값은 숫자 또는 '보수중'·'측정자료확인중(가동중지)' 같은 상태 문구. 실패 시 None."""
+    data, _ = http_post(cfg, "/selectOdaOpenNew.do", {"factCode": str(fact_code), "stackCode": str(stack)})
+    if not isinstance(data, dict) or not isinstance(data.get("result"), dict) or not data["result"]:
+        return None
+    return data["result"]
+
+
 def parse_open_dt(s, now):
     """'MM-DD HH:MM'(연도 없음) -> KST datetime. 현재보다 하루 넘게 미래면 전년도로 본다(연초 경계)."""
     try:
@@ -373,6 +382,26 @@ def cmd_collect(cfg, args):
             print(f"[ERR] {a}: {e}", file=sys.stderr)
             return None, True
 
+    def store(fname, stack, mdt, rec):
+        """슬롯 1건 저장. 새 슬롯은 추가, 기존 슬롯은 값이 구체적으로 정정된 경우에만 갱신."""
+        nonlocal new_rows
+        slot = floor30(mdt) - shift
+        running, basis = judge_slot(cfg, rec)
+        key = (fname, stack, slot.isoformat())
+        old = con.execute("SELECT running, basis FROM readings WHERE facility=? AND stack=? AND slot_ts=?",
+                          key).fetchone()
+        raw_s = json.dumps(rec, ensure_ascii=False, separators=(",", ":"))
+        if old is None:  # 새 슬롯만 추가 (같은 값을 다시 받으면 DB 를 건드리지 않아 불필요한 커밋 방지)
+            con.execute("INSERT INTO readings VALUES(?,?,?,?,?,?,?,?)",
+                        (*key, mdt.isoformat(), running, basis, raw_s, now.isoformat()))
+            new_rows += 1
+        elif old != (running, basis) and not is_null_basis(basis):
+            # null 은 기존 기록을 덮어쓰지 않음 (숫자·상태문구로 구체화된 경우만 갱신)
+            con.execute("UPDATE readings SET measured_at=?, running=?, basis=?, raw=?, fetched_at=? "
+                        "WHERE facility=? AND stack=? AND slot_ts=?",
+                        (mdt.isoformat(), running, basis, raw_s, now.isoformat(), *key))
+            new_rows += 1
+
     for fac in cfg["facilities"]:
         label = fac.get("display") or fac["name"]
         fc = str(fac.get("fact_code", "")).strip()
@@ -387,10 +416,6 @@ def cmd_collect(cfg, args):
             break
         dres = (detail or {}).get("result", {})
         fname = str(dres.get("fact_manage_nm") or fac.get("fact_name") or fac["name"]).strip()
-        dtext = dres.get("nox_mesure_value")
-        dslot = parse_detail_dt(dres.get("mesure_dt"))
-        dslot = floor30(dslot) if dslot else None
-        dstack = norm_stack(dres.get("stack_code", "")) if dres.get("stack_code") not in (None, "") else None
         want = [norm_stack(s) for s in stacks_to_collect(fac)] or \
                [norm_stack(s.get("stack_code")) for s in (detail or {}).get("stackList", [])]
         got = 0
@@ -400,36 +425,36 @@ def cmd_collect(cfg, args):
             if net_fail >= 3:
                 aborted = True
                 break
-            if not rows:
+            # 배출구별 최신 슬롯 상태(상태 문구 포함). 실패해도 24시간 자료 수집은 계속한다.
+            nres, _ = guarded(fetch_stack_now, cfg, fc, stack)
+            time.sleep(REQUEST_GAP_SEC)
+            if net_fail >= 3:
+                aborted = True
+                break
+            ndt = parse_detail_dt((nres or {}).get("mesure_dt"))
+            nslot = floor30(ndt) if ndt else None
+            ntext = {f: str(nres.get(f)).strip() for f in MEASURE_FIELDS
+                     if nres and nres.get(f) not in (None, "")}
+            if not rows and not ntext:
                 print(f"[주의] '{label}' 배출구 {stack}: 데이터 없음/형식 오류", file=sys.stderr)
                 continue
             got += 1
-            for rec in rows:
+            seen = set()
+            for rec in rows or []:
                 mdt = parse_open_dt(rec.get("open_dt"), now)
                 if mdt is None:
                     continue
                 rec = dict(rec)
-                # 대표 배출구의 최신 슬롯: 값이 비어 있고 상세 호출에 상태 문구가 있으면 문구를 반영
-                if (dstack == stack and dslot is not None and floor30(mdt) == dslot
-                        and dtext not in (None, "") and to_float(dtext) is None
+                seen.add(floor30(mdt))
+                # 최신 슬롯 값이 비어 있고 배출구별 상태 호출에 값(상태 문구)이 있으면 그 값을 반영
+                if (nslot is not None and floor30(mdt) == nslot and ntext
                         and all(rec.get(f) in (None, "") for f in MEASURE_FIELDS)):
-                    rec["nox_mesure_value"] = str(dtext).strip()
-                slot = floor30(mdt) - shift
-                running, basis = judge_slot(cfg, rec)
-                key = (fname, stack, slot.isoformat())
-                old = con.execute("SELECT running, basis FROM readings WHERE facility=? AND stack=? AND slot_ts=?",
-                                  key).fetchone()
-                raw_s = json.dumps(rec, ensure_ascii=False, separators=(",", ":"))
-                if old is None:  # 새 슬롯만 추가 (같은 값을 다시 받으면 DB 를 건드리지 않아 불필요한 커밋 방지)
-                    con.execute("INSERT INTO readings VALUES(?,?,?,?,?,?,?,?)",
-                                (*key, mdt.isoformat(), running, basis, raw_s, now.isoformat()))
-                    new_rows += 1
-                elif old != (running, basis) and not is_null_basis(basis):
-                    # 같은 슬롯의 값이 구체적으로 정정된 경우에만 갱신 (null 은 기존 기록을 덮어쓰지 않음)
-                    con.execute("UPDATE readings SET measured_at=?, running=?, basis=?, raw=?, fetched_at=? "
-                                "WHERE facility=? AND stack=? AND slot_ts=?",
-                                (mdt.isoformat(), running, basis, raw_s, now.isoformat(), *key))
-                    new_rows += 1
+                    rec.update(ntext)
+                store(fname, stack, mdt, rec)
+            # 24시간 자료에 없는 최신 슬롯(예: 보수중이라 행이 빠진 경우)은 상태 호출 값으로 저장
+            if nslot is not None and nslot not in seen and ntext:
+                rec = {"open_dt": ndt.strftime("%m-%d %H:%M"), "src": "now", **ntext}
+                store(fname, stack, ndt, rec)
         if aborted:
             break
         if got:
