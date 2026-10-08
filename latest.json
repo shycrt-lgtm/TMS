@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-08 10:39",
+ "generated_at": "2026-10-08 10:47",
  "latest_slot": "2026-10-08T09:30:00+09:00",
  "items": [
   {
@@ -937,7 +937,7 @@
    "unit": "바이오#2",
    "stacks": "9",
    "slot": "2026-10-07T14:00:00+09:00",
-   "running": 0,
+   "running": null,
    "today_hours": 0.0,
    "today_on_slots": 0,
    "today_slots": 0,
