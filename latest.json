@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-09 08:18",
+ "generated_at": "2026-10-09 08:32",
  "latest_slot": "2026-10-09T07:00:00+09:00",
  "items": [
   {
@@ -1557,7 +1557,7 @@
    "unit": "전체",
    "stacks": "1+2",
    "slot": "2026-10-09T07:00:00+09:00",
-   "running": null,
+   "running": 0,
    "today_hours": 2.5,
    "today_on_slots": 5,
    "today_slots": 15,
@@ -1578,7 +1578,7 @@
     0,
     null,
     0,
-    null,
+    0,
     null,
     null,
     null,
