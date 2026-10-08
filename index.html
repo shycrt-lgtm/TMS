@@ -25,7 +25,8 @@
   .wrap{max-width:1000px;margin:0 auto;padding:28px 16px 48px}
   body h2{display:flex;align-items:center;font-size:18px;font-weight:700;color:#001f3f;margin:30px 0 10px;padding-bottom:8px;border-bottom:2px solid #e5e7eb}
   body h2::before{content:'';flex:none;width:6px;height:18px;margin-right:9px;background:#001f3f}
-  @media (max-width:640px){ .site-header h1{font-size:22px} .menu{width:100%} .menu a{flex:1;width:auto;height:40px;padding:0 12px;font-size:13px} .wrap{padding-top:20px} }
+  .mb{display:none}
+  @media (max-width:640px){ .mb{display:inline} .menu a{text-align:center;line-height:1.25;gap:4px;height:48px!important;padding:0 6px!important} .menu a span{display:none} .site-header h1{font-size:22px} .menu{width:100%} .menu a{flex:1;width:auto;height:40px;padding:0 12px;font-size:13px} .wrap{padding-top:20px} }
   .pick-row{display:flex;justify-content:space-between;align-items:center;gap:8px 16px;flex-wrap:wrap;margin-bottom:16px}
   .pick-hint{font-size:13px;color:#64748b}
   .pick-hint b{color:#001f3f}
@@ -86,9 +87,9 @@
       <p class="sub" id="sub">기준일: <b>-</b> | 에너지사업총괄</p>
     </div>
     <nav class="menu">
-      <a href="https://shycrt-lgtm.github.io/Energy-Index/">에너지 시장 주요정보 <span>›</span></a>
-      <a href="https://shycrt-lgtm.github.io/KPX-Daily-Report/">전력시장 전일실적 <span>›</span></a>
-      <a href="https://shycrt-lgtm.github.io/Energy-Price/#home">에너지 단가 <span>›</span></a>
+      <a href="https://shycrt-lgtm.github.io/Energy-Index/">에너지 시장<br class="mb"> 주요정보 <span>›</span></a>
+      <a href="https://shycrt-lgtm.github.io/KPX-Daily-Report/">전력시장<br class="mb"> 전일실적 <span>›</span></a>
+      <a href="https://shycrt-lgtm.github.io/Energy-Price/#home">에너지<br class="mb"> 단가 <span>›</span></a>
     </nav>
   </div>
 </header>
