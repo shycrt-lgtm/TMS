@@ -367,6 +367,7 @@ def cmd_collect(cfg, args):
     now = datetime.now(KST)
     shift = timedelta(minutes=30) if cfg.get("label_is_end") else timedelta(0)
     ok = fail = new_rows = 0
+    now_ok = now_fail = now_text = 0  # 배출구별 상태 호출(selectOdaOpenNew) 집계: 성공 / 실패 / 상태문구 감지
     net_fail = 0  # 연속 접속 실패 횟수 (3회 연속이면 중단: 서버 접속 불가로 판단)
     aborted = False
 
@@ -431,10 +432,17 @@ def cmd_collect(cfg, args):
             if net_fail >= 3:
                 aborted = True
                 break
+            if nres:
+                now_ok += 1
+            else:
+                now_fail += 1
             ndt = parse_detail_dt((nres or {}).get("mesure_dt"))
             nslot = floor30(ndt) if ndt else None
             ntext = {f: str(nres.get(f)).strip() for f in MEASURE_FIELDS
                      if nres and nres.get(f) not in (None, "")}
+            if any(to_float(v) is None for v in ntext.values()):
+                now_text += 1
+                print(f"[상태] '{label}' 배출구 {stack}: {', '.join(sorted(set(ntext.values())))} ({ndt:%m-%d %H:%M})")
             if not rows and not ntext:
                 print(f"[주의] '{label}' 배출구 {stack}: 데이터 없음/형식 오류", file=sys.stderr)
                 continue
@@ -467,6 +475,7 @@ def cmd_collect(cfg, args):
     if aborted:
         print("[중단] 연속 3회 접속 실패 - 이번 주기 수집을 중단합니다", file=sys.stderr)
     print(f"{now:%Y-%m-%d %H:%M} 수집 성공 {ok}개 사업장 / 실패·일부누락 {fail}개 / 신규·정정 {new_rows}건")
+    print(f"[배출구 상태 호출 v2] 성공 {now_ok} / 실패 {now_fail} / 상태문구 감지 {now_text}배출구")
     if ok == 0 and fail > 0:
         sys.exit(1)  # 전부 실패하면 Actions 에서 빨간 표시
     if aborted:
