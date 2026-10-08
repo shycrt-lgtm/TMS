@@ -223,10 +223,9 @@ const LBR = {"GS파워": "GS<br>파워", "나래ES": "나래<br>ES", "GS EPS": "
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function yesterdayKST(){
-  const t = new Date(Date.now() + 9*3600*1000 - 24*3600*1000);
-  return `${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())}`;
-}
+function ymd(t){ return `${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())}`; }
+function todayKST(){ return ymd(new Date(Date.now() + 9*3600*1000)); }
+function addDays(day, n){ const [y, m, d] = day.split("-").map(Number); return ymd(new Date(Date.UTC(y, m-1, d + n))); }
 const shortTs = s => s ? s.slice(5, 16).replace("T", " ") : "";   // 10-01 12:30
 
 function parseCSV(text){
@@ -298,13 +297,14 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if (e.key === "Escape") $("ov").classList.remove("on"); });
 
 let LATEST_TXT;                                   // latest.json 은 한 번만 읽는다 (현재상태 = 마지막 저장 값)
-async function main(day = yesterdayKST()){
+async function main(day = todayKST()){
   setPicker(day);
+  const pday = addDays(day, -1);                   // 전일 발전시간 기준일
   if (LATEST_TXT === undefined) LATEST_TXT = await getText("latest.json").catch(() => null);
   const latestTxt = LATEST_TXT;
-  const csvTxt = await getText(`reports/report_${day}.csv`).catch(() => null);
+  const csvTxt = await getText(`reports/report_${pday}.csv`).catch(() => null);
   SLOTS = null;
-  try { const st = await getText(`reports/slots_${day}.json`); if (st) SLOTS = JSON.parse(st); } catch (e) { SLOTS = null; }
+  try { const st = await getText(`reports/slots_${pday}.json`); if (st) SLOTS = JSON.parse(st); } catch (e) { SLOTS = null; }
   const latest = latestTxt ? JSON.parse(latestTxt) : null;
   const rep = {};
   if (csvTxt) parseCSV(csvTxt).slice(1).forEach(r => rep[r[1] + "|" + r[2]] =
@@ -343,7 +343,7 @@ async function main(day = yesterdayKST()){
   let h = `<table><colgroup><col style="width:58px"><col style="width:62px"><col style="width:58px"><col style="width:58px"><col><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th>
     <th>현재상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
     <th>금일 발전시간<small>${tUpto ? shortTs(tUpto) + " 기준" : "-"}</small></th>
-    <th>전일 발전시간<small>${day}</small></th><th>발전용량</th><th>비고</th></tr></thead><tbody>`;
+    <th>전일 발전시간<small>${pday}</small></th><th>발전용량</th><th>비고</th></tr></thead><tbody>`;
   for (const d of rows){
     h += "<tr>";
     d.cells.forEach((c, k) => { if (!c.skip) h += `<td class="lab${c[2] === 0 && c[1] === 1 ? " grp" : ""}" colspan="${c[1]}" rowspan="${c.rs}">${LBR[c[0]] || esc(c[0])}</td>`; });
@@ -391,10 +391,10 @@ function setPicker(day){
 main().catch(fail);
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof flatpickr === "undefined") return;     // 달력 라이브러리가 늦어도 표는 먼저 보인다
-  const last = yesterdayKST();
+  const last = todayKST(), first = addDays(MIN_DAY, 1);   // 조회일자 = 오늘 기준, 전일 자료는 MIN_DAY부터
   const fp = flatpickr("#viewDate", {
     locale: "ko", dateFormat: "Y-m-d", defaultDate: last, disableMobile: true,
-    minDate: MIN_DAY < last ? MIN_DAY : last, maxDate: last,
+    minDate: first < last ? first : last, maxDate: last,
     onDayCreate: (o, s, f, el) => { const w = el.dateObj.getDay(); if (w === 0 || w === 6) el.classList.add("weekend-day"); },
     onChange: (d, str) => { if (str) { $("out").className = "msg"; $("out").textContent = "불러오는 중…"; main(str).catch(fail); } }
   });
