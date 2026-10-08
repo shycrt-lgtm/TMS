@@ -136,6 +136,53 @@
       "auto_stacks": true
     },
     {
+      "fact_code": "170707",
+      "fact_name": "지에스이피에스㈜[GS EPS㈜]",
+      "name": "지에스이피에스",
+      "display": "GS EPS",
+      "units": [
+        {
+          "label": "1호기",
+          "stacks": [
+            1,
+            2
+          ]
+        },
+        {
+          "label": "2호기",
+          "stacks": [
+            3,
+            4
+          ]
+        },
+        {
+          "label": "3호기",
+          "stacks": [
+            5
+          ]
+        },
+        {
+          "label": "바이오#1",
+          "stacks": [
+            6
+          ]
+        },
+        {
+          "label": "4호기",
+          "stacks": [
+            7,
+            8
+          ]
+        },
+        {
+          "label": "바이오#2",
+          "stacks": [
+            9
+          ]
+        }
+      ]
+    },
+    {
       "fact_code": "150758",
       "fact_name": "나래에너지서비스㈜",
       "name": "나래에너지서비스",

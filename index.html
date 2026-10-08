@@ -139,6 +139,12 @@ const LNG_RULES = [
   [/GS파워\(안양\)/, /1호기/, "직도입"],
   [/GS파워\(안양\)/, /2호기/, "KOGAS 평균"],
   [/GS파워\(부천\)/, null, "KOGAS 평균"],
+  [/GS E&R\(반월\)/, null, "유연탄, 도시가스, LPG, 중유"],
+  [/GS EPS/, /^1호기$/, "KOGAS 개별"],
+  [/GS EPS/, /^2호기$/, "KOGAS 평균"],
+  [/GS EPS/, /^3호기$/, "KOGAS 평균"],
+  [/GS EPS/, /^4호기$/, "직도입"],
+  [/GS EPS/, /^바이오/, "폐목재/식물성 잔재물"],
   [/청라에너지|김포/, null, "KOGAS 개별"],
   [/나래ES\(위례\)/, null, "직도입"],
   [/나래ES\(하남\)/, null, "KOGAS 평균"],
@@ -152,6 +158,12 @@ const CAP_RULES = [
   [/안산도시개발/, null, "62.6MW"],
   [/GS파워\(안양\)/, null, "481.7MW"],
   [/GS파워\(부천\)/, null, "460.6MW"],
+  [/GS E&R\(반월\)/, null, "83.5MW"],
+  [/GS EPS/, /^1호기$/, "538MW"],
+  [/GS EPS/, /^2호기$/, "550MW"],
+  [/GS EPS/, /^3호기$/, "415MW"],
+  [/GS EPS/, /^4호기$/, "903MW"],
+  [/GS EPS/, /^바이오/, "105MW"],
   [/청라에너지|김포/, null, "495MW"],
   [/인천종합에너지/, null, "187.3MW"],
   [/위드인천/, null, "24MW"],
@@ -190,6 +202,8 @@ const LAYOUT = [
   [/청라에너지|김포/,    () => [["GS", 1], ["청라에너지(김포)", 3]]],
   [/인천종합에너지/,     () => [["GS", 1], ["인천종합에너지", 3]]],
   [/위드인천/,           () => [["GS", 1], ["위드인천에너지", 3]]],
+  [/GS E&R\(반월\)/,    () => [["GS", 1], ["GS E&R(반월)", 3]]],
+  [/GS EPS/,            u => [["GS", 1], ["GS EPS", 1], [u, 2]]],
   [/나래ES\(위례\)/,   () => [["SK E&S", 1], ["나래ES", 1], ["위례열병합", 2]]],
   [/나래ES\(하남\)/,   () => [["SK E&S", 1], ["나래ES", 1], ["하남열병합", 2]]],
   [/포천파워/,          u => [["포천파워(DL)", 2], [u, 2]]],
@@ -203,7 +217,7 @@ function layoutOf(fac, unit, multi){
   return multi ? [[clean(fac), 2], [unit, 2]] : [[clean(fac), 4]];
 }
 
-const LBR = {"GS파워": "GS<br>파워", "나래ES": "나래<br>ES"};   // 사업장 열 줄바꿈 표시
+const LBR = {"GS파워": "GS<br>파워", "나래ES": "나래<br>ES", "GS EPS": "GS<br>EPS"};   // 사업장 열 줄바꿈 표시
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -327,7 +341,7 @@ async function main(day = yesterdayKST()){
   let h = `<table><colgroup><col style="width:58px"><col style="width:62px"><col style="width:58px"><col style="width:58px"><col><col><col><col><col></colgroup><thead><tr><th colspan="4">사업장</th>
     <th>현재상태<small>${ls ? shortTs(ls) + " 기준" : "-"}</small></th>
     <th>금일 발전시간<small>${tUpto ? shortTs(tUpto) + " 기준" : "-"}</small></th>
-    <th>전일 발전시간<small>${day}</small></th><th>발전용량</th><th>LNG</th></tr></thead><tbody>`;
+    <th>전일 발전시간<small>${day}</small></th><th>발전용량</th><th>비고</th></tr></thead><tbody>`;
   for (const d of rows){
     h += "<tr>";
     d.cells.forEach((c, k) => { if (!c.skip) h += `<td class="lab${c[2] === 0 && c[1] === 1 ? " grp" : ""}" colspan="${c[1]}" rowspan="${c.rs}">${LBR[c[0]] || esc(c[0])}</td>`; });
