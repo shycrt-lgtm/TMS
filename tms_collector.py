@@ -259,7 +259,11 @@ def build_unit_status(con, cfg, day=None):
         name = fac["name"]
         dbfacs = sorted({f for (f, s) in by if name_ok(fac, f)})
         for dbf in dbfacs:
-            units = units_of(fac) or [(f"배출구{s}", [s]) for s in sorted({s for (f, s) in by if f == dbf}, key=stack_key)]
+            if fac.get("auto_stacks"):  # 배출구 목록을 사이트에서 받아 자동 수집 → 하나라도 발전이면 한 줄(전체)을 발전으로 표시
+                ex = {norm_stack(x) for x in fac.get("exclude_stacks", [])}  # 열 전용 설비 등: 수집은 하되 발전 판정에서는 제외
+                units = [("전체", sorted({s for (f, s) in by if f == dbf and s not in ex}, key=stack_key))]
+            else:
+                units = units_of(fac) or [(f"배출구{s}", [s]) for s in sorted({s for (f, s) in by if f == dbf}, key=stack_key)]
             for label, stacks in units:
                 series = [by.get((dbf, norm_stack(s)), {}) for s in stacks]
                 slots = sorted(set().union(*[set(x) for x in series]))
