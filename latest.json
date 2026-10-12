@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-13 02:52",
+ "generated_at": "2026-10-13 03:02",
  "latest_slot": "2026-10-13T01:30:00+09:00",
  "items": [
   {
@@ -7,7 +7,7 @@
    "unit": "전체",
    "stacks": "1+2",
    "slot": "2026-10-13T01:30:00+09:00",
-   "running": null,
+   "running": 0,
    "today_hours": 0.5,
    "today_on_slots": 1,
    "today_slots": 4,
@@ -17,7 +17,7 @@
     1,
     null,
     null,
-    null,
+    0,
     null,
     null,
     null,
@@ -1557,7 +1557,7 @@
    "unit": "전체",
    "stacks": "1+2",
    "slot": "2026-10-13T01:30:00+09:00",
-   "running": null,
+   "running": 0,
    "today_hours": 0.0,
    "today_on_slots": 0,
    "today_slots": 4,
@@ -1567,7 +1567,7 @@
     null,
     0,
     null,
-    null,
+    0,
     null,
     null,
     null,
