@@ -1,17 +1,17 @@
 {
- "generated_at": "2026-10-14 02:06",
+ "generated_at": "2026-10-14 02:23",
  "latest_slot": "2026-10-14T01:00:00+09:00",
  "items": [
   {
    "facility": "㈜에스파워",
    "unit": "전체",
    "stacks": "1+2",
-   "slot": "2026-10-14T00:30:00+09:00",
+   "slot": "2026-10-14T01:00:00+09:00",
    "running": null,
    "today_hours": 0.5,
    "today_on_slots": 1,
-   "today_slots": 2,
-   "today_upto": "2026-10-14T00:30:00+09:00",
+   "today_slots": 3,
+   "today_upto": "2026-10-14T01:00:00+09:00",
    "today_partial": true,
    "today_arr": [
     1,
