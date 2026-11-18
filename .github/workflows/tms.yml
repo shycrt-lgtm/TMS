@@ -49,6 +49,17 @@ jobs:
           python3 tms_collector.py report --date "$D" --csv "data/reports/report_$D.csv"
           python3 tms_collector.py slots --dir data/reports
 
+      - name: Backfill yesterday report
+        # 03:10 KST 예약 실행이 GitHub 지연·누락으로 건너뛰어져도, 04시 이후 어느 수집 실행에서든 전일 리포트가 없으면 생성
+        env:
+          TMS_DB: data/tms.db
+        run: |
+          D=$(TZ=Asia/Seoul date -d yesterday +%F)
+          if [ "$(TZ=Asia/Seoul date +%H)" -ge 4 ] && [ ! -f "data/reports/report_$D.csv" ]; then
+            mkdir -p data/reports
+            python3 tms_collector.py report --date "$D" --csv "data/reports/report_$D.csv"
+          fi
+
       - name: Commit data
         run: |
           cd data
